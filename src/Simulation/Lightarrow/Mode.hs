@@ -150,9 +150,9 @@ lastOut b0 = mapMode (record b0)
     where record b0 sf = proc a -> do
                             rec     bR      <-  iPre b0     -< b
                                     ebc     <-  sf          -< a
-                                    b       <-  case ebc of
-                                                    Left b      -> returnA -< b
-                                                    Right c     -> returnA -< bR
+                                    let b = case ebc of
+                                                Left b      -> b
+                                                Right c     -> bR
                             returnA -< fmap (,b) ebc
 
 vainMode :: Monad m => Mode a b m c -> Mode a b m (c, Mode a b m c)
@@ -178,7 +178,7 @@ newtype Voice a b m c = Voice { unVoice :: Mode a b m c }
 
 instance (Monad m, Monoid b) => Applicative (Voice a b m) where
     pure c = Voice (pure c)
-    liftA2 f f (Voice (Mode sf1)) (Voice (Mode sf2))
+    liftA2 f (Voice (Mode sf1)) (Voice (Mode sf2))
             = Voice     (do    t  <- Mode  (proc a -> do
                                                (ebc1, r1)  <- vain sf1     -< a
                                                (ebc2, r2)  <- vain sf2     -< a
@@ -188,11 +188,11 @@ instance (Monad m, Monoid b) => Applicative (Voice a b m) where
                                                                (Left _, Right d)   -> Right (Mitte (d, r1))
                                                                (Right c, Right d)  -> Right (Rechts (c, d)))
                                case t of
-                                   Links (c, r)   -> do   d  <- Mode r
-                                                           return (f c d)
-                                   Mitte (d, r)   -> do   c  <- Mode r
-                                                           return (f c d)
-                                   Rechts (c, d) -> return (f c d))
+                                   Links (c, r)     -> do   d  <- Mode r
+                                                            return (f c d)
+                                   Mitte (d, r)     -> do   c  <- Mode r
+                                                            return (f c d)
+                                   Rechts (c, d)    -> return (f c d))
 
 mix :: (MonadFix m, Monoid b) => Mode a b m c -> Mode a b m d -> Mode a b m (c,d)
 mix m1 m2 = unVoice (liftA2 (,) (Voice m1) (Voice m2))
