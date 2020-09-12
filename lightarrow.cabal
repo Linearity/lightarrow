@@ -19,8 +19,8 @@ library
   exposed-modules:     Lightarrow
                        Data.Lightarrow
                        Data.Lightarrow.Artifact
+                       Data.Lightarrow.Audio
                        Data.Lightarrow.Bitmap
-                       Data.Lightarrow.Clip
                        Data.Lightarrow.Color
                        Data.Lightarrow.IdentityList
                        Data.Lightarrow.Mesh
@@ -43,6 +43,8 @@ library
                        Simulation.Lightarrow.Kinematics
                        Simulation.Lightarrow.Mode
                        Simulation.Lightarrow.RigidMotion
+                       Sound.Lightarrow
+                       Sound.Lightarrow.Playback
                        System.Lightarrow
                        System.Lightarrow.Actuation
                        System.Lightarrow.Joystick

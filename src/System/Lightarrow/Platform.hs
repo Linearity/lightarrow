@@ -1,6 +1,7 @@
 module System.Lightarrow.Platform where
 
 import           Control.Monad.Trans.Class
+import           Control.Monad.Trans.Cont
 import           Control.Monad.Trans.Reader
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
@@ -26,7 +27,6 @@ instance MonadPlatform m a
             => MonadPlatform (StrictS.StateT s m) a where
     liftPlatform = lift . liftPlatform
 
-
 instance (Monoid s, MonadPlatform m a)
             => MonadPlatform (LazyW.WriterT s m) a where
     liftPlatform = lift . liftPlatform
@@ -37,6 +37,10 @@ instance (Monoid s, MonadPlatform m a)
 
 instance MonadPlatform m a
             => MonadPlatform (ReaderT r m) a where
+    liftPlatform = lift . liftPlatform
+
+instance MonadPlatform m a
+            => MonadPlatform (ContT r m) a where
     liftPlatform = lift . liftPlatform
 
 instance MonadPlatform m a
