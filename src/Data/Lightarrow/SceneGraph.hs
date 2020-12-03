@@ -6,7 +6,6 @@ relative positions in space. This is called a scene graph.
 -}
 module Data.Lightarrow.SceneGraph where
 
-import Data.Array
 import Data.Graph
 import Data.Maybe
 import Data.Tree

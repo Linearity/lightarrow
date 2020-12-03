@@ -37,7 +37,7 @@ drag (_cursor :: Lens' a (Double, Double)) (_x :: Lens' b (Double, Double, Doubl
     where move d a = modify (_x %~ (\x -> let (u, v) = (a ^. _cursor) ^+^ d
                                             in (u, v, x^._3)))
 
-xfCursor _x c = do  (x, y, z)   <- gets (view _x)
+xfCursor _x c = do  (x, y, _z)  <- gets (view _x)
                     return ((x, y) ^-^ c)
 
 mouseClick _button _cursor _x _d
@@ -46,8 +46,8 @@ mouseClick _button _cursor _x _d
         over    <- arrM (mouseOver _cursor _x _d)   -< a
         returnA -< gate click over
 
-mouseOver _cursor _x _d a = do  (x, y, z) <- gets (view _x)
-                                (w, h)    <- gets (view _d)
+mouseOver _cursor _x _d a = do  (x, y, _z)      <- gets (view _x)
+                                (w, h)          <- gets (view _d)
                                 let   x'  = x - w/2
                                       y'  = y - h/2
                                 return (inBox w h (x', y') (a ^. _cursor))

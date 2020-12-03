@@ -15,7 +15,7 @@ data SceneTransform a   = TRS {     trsT :: V3 a,
 getTranslation :: SceneTransform a -> V3 a
 getTranslation (TRS t _ _) = t
 getTranslation (MatrixTransform m) = V3 x y z
-    where   V4 _ _ _ (V4 x y z w) = transpose m
+    where   V4 _ _ _ (V4 x y z _w) = transpose m
 
 setTranslation :: V3 a -> SceneTransform a -> SceneTransform a
 setTranslation t (TRS _ r s) = TRS t r s

@@ -127,11 +127,6 @@ always sf = Mode (sf >>> arr Left)
 There are other termination conditions beyond the passing of some interval. In general we can run a signal function until the rising edge of some Boolean signal.
 
 -}
-instance Alternative Event where
-    empty           = NoEvent
-    NoEvent <|> r   = r
-    l       <|> _   = l
-
 rising p = arrM p >>> edge
 falling p = arrM (fmap not . p) >>> edge
 indeed p = arrM p >>> iEdge False
@@ -151,7 +146,7 @@ lastOut b0 = mapMode (record b0)
                                     ebc     <-  sf          -< a
                                     let b = case ebc of
                                                 Left b      -> b
-                                                Right c     -> bR
+                                                Right _c    -> bR
                             returnA -< fmap (,b) ebc
 
 vainMode :: Monad m => Mode a b m c -> Mode a b m (c, Mode a b m c)
