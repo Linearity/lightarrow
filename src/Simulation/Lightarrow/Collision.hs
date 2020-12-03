@@ -1,8 +1,6 @@
 module Simulation.Lightarrow.Collision where
 
 import Data.Lightarrow.IdentityList hiding (filter)
-import Data.List
-import FRP.BearRiver
 import Simulation.Lightarrow.Cue
 
 collisions :: Collision c Int

@@ -26,7 +26,7 @@ null :: IL a -> Bool
 null (IL _ t) = IM.null t
 
 fromList :: [a] -> IL a
-fromList as = foldl (flip insert_) empty as
+fromList = foldl (flip insert_) empty
 
 fromAssocs :: [(Int, a)] -> IL a
 fromAssocs as = IL (maximum (fmap fst as)) (IM.fromList as)

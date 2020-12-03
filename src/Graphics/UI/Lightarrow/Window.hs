@@ -3,13 +3,13 @@ module Graphics.UI.Lightarrow.Window where
 import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Control.Monad.Writer.Strict
+import Data.Bifunctor (second)
 import Data.Lightarrow.SceneTransform
 import Data.Lightarrow.SceneGraph
 import Data.Tree
 import Data.VectorSpace
-import Data.MonadicStreamFunction hiding (embed)
-import           Data.Bifunctor                 ( bimap )
-import FRP.BearRiver hiding (embed)
+import Data.MonadicStreamFunction hiding (embed, second)
+import FRP.BearRiver hiding (embed, second)
 import Graphics.UI.Lightarrow.Common
 import Linear (V3(..))
 import Optics
@@ -43,12 +43,12 @@ window  (_button :: Lens' (Sensation a) Bool)
                                 returnA -< gate e (not (getAny inItem))
             dragged'        = chorus (do   rest (drag _cursor _x)
                                            voice dragged)
-            released        = falling (return . (view _button))
+            released        = falling (return . view _button)
             transform sf    = proc (c, a) -> do
                                 a'      <- arrM xfInput     -< a
                                 ecbd    <- liftTransSF sf   -< (c, a')
                                 f       <- constM xfDraw    -< ()
-                                returnA -< bimap (\(c,b) -> (c,f b)) id ecbd
+                                returnA -< second (\(c,b) -> (c,f b)) ecbd
             xfInput a       = do    c   <- xfCursor _x (a ^. _cursor)
                                     return (a & _cursor .~ negateVector c)
             xfDraw          = do    (x, y, z)   <- gets (view _x)

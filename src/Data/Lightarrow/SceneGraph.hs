@@ -52,7 +52,7 @@ runTree :: (Conjugate a, RealFloat a)
                 -> b
 runTree cat t = foldTree f t []
     where   f (Frame t)  gs     = col (map (\g -> g . (t :)) gs)
-            f (Term g)   gs     = col ((\ts -> g (foldr composeXf identityXf (reverse ts))) : gs)
+            f (Term g)   gs     = col (g . foldr composeXf identityXf . reverse : gs)
             f _          gs     = col gs
             col gs ts           = cat (map ($ ts) gs)
 
@@ -78,7 +78,7 @@ prune :: (Conjugate a, RealFloat a)
 prune p xf (Node (Frame t) kids)
         | null kidsP    = Nothing
         | otherwise     = Just (Node (Frame t) kidsP)
-    where   kidsP   = catMaybes (map (prune p (xf `composeXf` t)) kids)
+    where   kidsP   = mapMaybe (prune p (xf `composeXf` t)) kids
 prune p xf x = if p xf then Just x else Nothing
 
 cameraViews :: Tree (SceneNode Double b) -> [SceneTransform Double]
@@ -94,9 +94,9 @@ camerasAux ks (g, adjacency, vertex) = [getView identityXf p | p <- paths]
                                 Frame xf2   -> getView (composeXf xf2 xf) k
                                 _           -> getView xf k
             paths           = map (head . dfs gT . pure) cams  --search for root
-            undirected      = buildG (bounds g) (edges g ++ edges gT)
+            --undirected      = buildG (bounds g) (edges g ++ edges gT)
             gT              = transposeG g
-            cams            = catMaybes (map vertex ks)     --valid camera vertices
+            cams            = mapMaybe vertex ks    --valid camera vertices
             sceneNode v     = adjacency v ^. _1
 {-
 

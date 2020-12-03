@@ -9,7 +9,6 @@ import              Control.Monad.Cont                      hiding (join)
 import              Control.Monad.Reader                    hiding (join)
 import              Control.Monad.State                     hiding (join, StateT)
 import              Control.Monad.Trans.MSF                 (WriterT)
-import              Data.Composition
 import              Data.Tuple
 import              Data.Bifunctor                          hiding (first)
 import              FRP.BearRiver                           hiding (embed)
@@ -25,7 +24,7 @@ A mode can be combined with a final continuation to produce an ordinary signal f
 
 -}
 runMode :: Monad m => Mode a b m c -> (c -> SF m a b) -> SF m a b
-runMode (Mode sf) k = switch (sf >>> arr eitherToEvent) k
+runMode (Mode sf) = switch (sf >>> arr eitherToEvent)
     where   eitherToEvent x     = case x of
                                     Left b      -> (b, NoEvent)
                                     Right c     -> (undefined, Event c)
@@ -54,7 +53,7 @@ A mode is a monad, and as such it is also an applicative functor. The context im
 
 -}
 instance Monad m => Functor (Mode a b m) where
-    fmap f (Mode sf) = Mode (sf >>> (arr (fmap f)))
+    fmap f (Mode sf) = Mode (sf >>> arr (fmap f))
 
 instance Monad m => Applicative (Mode a b m) where
     pure c  = Mode (constant (Right c))
@@ -99,7 +98,7 @@ momentC b = moment (const (return b))
 
 
 blink :: Monad m => (a -> ClockInfo m c) -> Mode a b m c
-blink g = Mode (arrM (\a -> g a >>= return . Right))
+blink g = Mode (arrM (g >=> return . Right))
 
 
 sample :: Monad m => Mode a b m a
@@ -241,34 +240,34 @@ type BusT c m = ReaderT c (WriterT c m)
 
 newBus :: (Monad m, Monoid c) =>
             Mode a b (ReaderT c (WriterT c m)) d
-            -> Mode a b m d
-newBus = mapMode (runWriterSF_ . (runReaderSF_ mempty))
+                -> Mode a b m d
+newBus = mapMode (runWriterSF_ . runReaderSF_ mempty)
 
 noBus :: (Monad m, Monoid c) =>
             Mode a b m d
-            -> Mode a b (ReaderT c (WriterT c m)) d
+                -> Mode a b (ReaderT c (WriterT c m)) d
 noBus = mapMode (liftReaderSF . liftWriterSF)
 
 bus :: (Monad m, Monoid c) =>
         Mode (c, a) (c, b) m d
-        -> Mode a b (ReaderT c (WriterT c m)) d
+            -> Mode a b (ReaderT c (WriterT c m)) d
 bus = mapMode (readerSF . writerSF . (>>> arr swizzle))
     where   swizzle ewbd = either (\(w,b) -> (w, Left b)) (\d -> (mempty, Right d)) ewbd
 
 runBus :: (Monad m, Monoid c) =>
             Mode a b (ReaderT c (WriterT c m)) d
-            -> Mode (c, a) (c, b) m d
+                -> Mode (c, a) (c, b) m d
 runBus = mapMode ((>>> arr swizzle) . runWriterSF . runReaderSF)
     where   swizzle (w, ebd) = bimap (w,) id ebd
 
-busSwap :: Monad m
-            => SF m (a1, a2) (Either (b1, b2) c)
+busSwap :: Monad m =>
+            SF m (a1, a2) (Either (b1, b2) c)
                 -> SF m (a2, a1) (Either (b2, b1) c)
 busSwap sf = arr swap >>> sf >>> arr (bimap swap id)
 
 
 
-embed fI fO = mapMode f
+embedMode fI fO = mapMode f
     where   f sf   = arr fI >>> sf >>> arr (bimap fO id)
 {-
 
@@ -276,9 +275,7 @@ Simultaneous activities can be layered together as concurrent "threads."
 
 -}
 chorus t = runContT t return
-voice m = callCC (\ cc -> ContT (\ k -> mix m (runContT (cc ()) k) >> return ()))
-rest m = voice (embed id (const mempty) m)
+voice m = callCC (\ cc -> ContT (\ k -> void (mix m (runContT (cc ()) k))))
+rest m = voice (embedMode id (const mempty) m)
 busVoice m
-    = callCC (\cc ->
-                ContT (\k ->
-                        busMixM m (runContT (cc ()) k) >> return ()))
+    = callCC (\cc -> ContT (\k -> void (busMixM m (runContT (cc ()) k))))

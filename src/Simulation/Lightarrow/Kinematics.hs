@@ -36,7 +36,7 @@ its magnitude is less than or equal to a maximum speed.
 
 -}
 speedLimit :: (Ord a, VectorSpace v a) => a -> v -> v
-speedLimit s v = clampLength 0 s v
+speedLimit = clampLength 0
 {-
 
 The governor is a little more subtle. It attenuates the acceleration before the

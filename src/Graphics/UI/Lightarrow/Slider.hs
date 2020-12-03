@@ -1,6 +1,5 @@
 module Graphics.UI.Lightarrow.Slider (slider) where
 
-import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Control.Monad.Writer.Strict
 import Data.MonadicStreamFunction hiding (embed)
@@ -21,7 +20,7 @@ slider  (_button :: Lens' (Sensation a) Bool)
                                voice (toggle click sliding' released
                                         (pushdown above hover idle)))
     where   click       = mouseClick _button _cursor _x _d
-            released    = falling (return . (view _button))
+            released    = falling (return . view _button)
             above       = mouseOver _cursor _x _d
             sliding'    = chorus (do   rest (always (arrM move))
                                        voice sliding)

@@ -104,7 +104,7 @@ identityXf :: Num a => SceneTransform a
 identityXf = TRS (V3 0 0 0) (Quaternion 1 (V3 0 0 0)) (V3 1 1 1)
 
 inverseXf :: (Conjugate a, RealFloat a) => SceneTransform a -> SceneTransform a
-inverseXf t@(TRS _ _ _)         = inverseXf (MatrixTransform (toMatrix t))
+inverseXf t@TRS {}              = inverseXf (MatrixTransform (toMatrix t))
 inverseXf (MatrixTransform m)   = MatrixTransform (inv44 m)
 
 toMatrix :: Num a => SceneTransform a -> M44 a
