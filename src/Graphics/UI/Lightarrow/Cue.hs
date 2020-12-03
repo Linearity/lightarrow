@@ -6,18 +6,18 @@ identify here.
 -}
 module Graphics.UI.Lightarrow.Cue where
 
-import Simulation.Lightarrow.Cue
+import FRP.BearRiver
 
-class Cue a => MouseEnter a where
+class MouseEnter a where
     cueMouseEnter       :: a
-    reactMouseEnter     :: a -> Maybe b
+    reactMouseEnter     :: a -> Event b
 
-class Cue a => MouseExit a where
+class MouseExit a where
     cueMouseExit    :: a
-    reactMouseExit  :: a -> Maybe b
+    reactMouseExit  :: a -> Event b
 
-class Cue a => MouseDown a where
+class MouseDown a where
     cueMouseDown    :: a
-    reactMouseDown  :: a -> Maybe b
+    reactMouseDown  :: a -> Event b
 
 

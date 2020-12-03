@@ -3,6 +3,7 @@ module Simulation.Lightarrow.Event where
 import Control.Monad.Fix
 import Data.VectorSpace
 import FRP.BearRiver
+import Control.Applicative
 {-
 
 We define some common event sources.
@@ -11,7 +12,7 @@ We define some common event sources.
 afterInput :: Monad m => a -> SF m Time (Event a)
 afterInput x =  proc threshold -> do
                   t     <-  time  -< ()
-                  done  <-  edge  -< t > threshold
+                  done  <-  edge  -< t >= threshold
                   returnA -< done `tag` x
 {-
 
@@ -40,8 +41,6 @@ We can represent an impulse as a signal by knowing the length of the time step.
 impulse :: (Monad m, VectorSpace a DTime) => SF m (Event a) (Event a)
 impulse = arrTime (\dt -> fmap (^/ dt))
 
-
-
 instance Semigroup a => Semigroup (Event a) where
     Event a1    <> Event a2     = Event (a1 <> a2)
     NoEvent     <> e2           = e2
@@ -49,3 +48,8 @@ instance Semigroup a => Semigroup (Event a) where
 
 instance Semigroup a => Monoid (Event a) where
     mempty = NoEvent
+
+instance Alternative Event where
+    empty   = NoEvent
+    NoEvent     <|> Event a2    = Event a2
+    e1          <|> _           = e1
