@@ -4,7 +4,6 @@ module System.Lightarrow.Load where
 import           Control.Monad
 import           Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as B
-import qualified Data.Map as M
 import           FRP.BearRiver
 import           Simulation.Lightarrow.Mode
 import           System.Lightarrow.Platform
@@ -41,14 +40,6 @@ class SavePlatform d m where
 stringToFile s path = liftIO (withFile path WriteMode (`hPutStr` s))
 
 bytestringToFile b path = liftIO (withFile path WriteMode (`B.hPut` b))
-
-loadAll :: (Ord n, LoadPlatform d m, Monad m)
-                => Resources m -> [(n, Location d)] -> m (M.Map n d)
-loadAll m = mapM (load m <=< request m) . M.fromList
-
-requestAll :: (Ord n, LoadPlatform d m, Monad m)
-                => Resources m -> [(n, Location d)] -> m (M.Map n d)
-requestAll m = mapM (request m) . M.fromList
 {-
 
 Commonly names are enumeration types and locations are strings representing
@@ -65,4 +56,6 @@ makePaths dir ext = [(name, prefix ++ show name ++ suffix) | name <- [toEnum 0 .
 
 loader r a = runMode (liftPF (load r =<< request r a)) constant
 
-reloader r a = runMode (liftPF (request r a)) (\d -> constM (liftPF (load r d)))
+reloader r a = runMode (liftPF (request r a)) (constM . liftPF . load r)
+
+loadMany rename r = traverse (load r <=< request r . rename)
