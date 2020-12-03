@@ -31,6 +31,7 @@ library
                        Graphics.Lightarrow
                        Graphics.Lightarrow.Blit
                        Graphics.Lightarrow.Rasterize
+                       Graphics.Lightarrow.Rectangle
                        Graphics.UI.Lightarrow
                        Graphics.UI.Lightarrow.Common
                        Graphics.UI.Lightarrow.Cue
@@ -76,7 +77,6 @@ library
                        composition,
                        containers,
                        dunai,
-                       lens,
                        linear,
                        mtl,
                        optics,

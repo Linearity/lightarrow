@@ -1,10 +1,10 @@
 module Data.Lightarrow.SceneTransform where
 
-import Control.Lens
 import Data.Lightarrow.Bitmap
 import qualified Linear (rotate)
 import Linear hiding (rotate)
 import Linear.Affine
+import Optics
 
 data SceneTransform a   = TRS {     trsT :: V3 a,
                                     trsR :: Quaternion a,
@@ -12,9 +12,81 @@ data SceneTransform a   = TRS {     trsT :: V3 a,
                         | MatrixTransform (M44 a)
     deriving Show
 
+getTranslation :: SceneTransform a -> V3 a
 getTranslation (TRS t _ _) = t
 getTranslation (MatrixTransform m) = V3 x y z
     where   V4 _ _ _ (V4 x y z w) = transpose m
+
+setTranslation :: V3 a -> SceneTransform a -> SceneTransform a
+setTranslation t (TRS _ r s) = TRS t r s
+setTranslation (V3 x y z) (MatrixTransform m) = MatrixTransform m'
+    where   m'                          = transpose (V4 c1 c2 c3 (V4 x y z w))
+            V4 c1 c2 c3 (V4 _ _ _ w)    = transpose m
+
+_translation :: Lens' (SceneTransform a) (V3 a)
+_translation = lens getTranslation (flip setTranslation)
+
+getRotation :: (Epsilon a, Floating a, Ord a) => SceneTransform a -> Quaternion a
+getRotation (TRS _ r _) = r
+getRotation (MatrixTransform m) = Quaternion q1 (V3     (signum (r32 - r23) * q2)
+                                                        (signum (r13 - r31) * q3)
+                                                        (signum (r21 - r12) * q4))
+    where   q1  | r11 + r22 + r33 > eta     = sqrt (1 + r11 + r22 + r33) / 2
+                | otherwise                 = sqrt (    (       (r32 - r23) ** 2
+                                                            +   (r13 - r31) ** 2
+                                                            +   (r21 - r12) ** 2)
+                                                        / (3 - r11 - r22 - r33)     )
+            q2  | r11 - r22 - r33 > eta     = sqrt (1 + r11 - r22 - r33) / 2
+                | otherwise                 = sqrt (    (       (r32 - r23) ** 2
+                                                            +   (r12 + r21) ** 2
+                                                            +   (r31 - r13) ** 2)
+                                                        / (3 - r11 + r22 + r33)     )
+            q3  | (-r11) + r22 - r33 > eta  = sqrt (1 - r11 + r22 - r33) / 2
+                | otherwise                 = sqrt (    (       (r13 - r31) ** 2
+                                                            +   (r12 + r21) ** 2
+                                                            +   (r23 + r32) ** 2)
+                                                        / (3 + r11 - r22 + r33)     )
+            q4  | (-r11) - r22 + r33 > eta  = sqrt (1 - r11 - r22 + r33) / 2
+                | otherwise                 = sqrt (    (       (r21 - r12) ** 2
+                                                            +   (r31 + r13) ** 2
+                                                            +   (r32 + r23) ** 2)
+                                                        / (3 + r11 + r22 - r33)     )
+            eta                             = 0
+            V4 r11 r21 r31 _                = normalize c1
+            V4 r12 r22 r32 _                = normalize c2
+            V4 r13 r23 r33 _                = normalize c3
+            V4 c1 c2 c3 _                   = transpose m
+
+setRotation :: Floating a => Quaternion a -> SceneTransform a -> SceneTransform a
+setRotation r (TRS t _ s) = TRS t r s
+setRotation r (MatrixTransform m) = MatrixTransform m'
+    where   m'              = scaled (V4 (norm c1) (norm c2) (norm c3) 1)
+                                !*! mkTransformation r (V3 x y z)
+            V4 x y z _      = c4
+            V4 c1 c2 c3 c4  = transpose m
+
+_rotation :: (Epsilon a, Floating a, Ord a) => Lens' (SceneTransform a) (Quaternion a)
+_rotation = lens getRotation (flip setRotation)
+
+getScale :: Floating a => SceneTransform a -> V3 a
+getScale (TRS _ _ s) = s
+getScale (MatrixTransform m) = V3 sx sy sz
+    where   V4 c1 c2 c3 _   = transpose m
+            sx              = norm c1
+            sy              = norm c2
+            sz              = norm c3
+
+setScale :: (Epsilon a, Floating a) => V3 a -> SceneTransform a -> SceneTransform a
+setScale s (TRS t r _) = TRS t r s
+setScale (V3 sx sy sz) (MatrixTransform m) = MatrixTransform m'
+    where   m'              = transpose (V4 c1' c2' c3' c4)
+            c1'             = sx *^ normalize c1
+            c2'             = sy *^ normalize c2
+            c3'             = sz *^ normalize c3
+            V4 c1 c2 c3 c4  = transpose m
+
+_scale :: (Epsilon a, Floating a) => Lens' (SceneTransform a) (V3 a)
+_scale = lens getScale (flip setScale)
 
 composeXf :: (Conjugate a, RealFloat a)
                 => SceneTransform a

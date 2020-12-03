@@ -2,7 +2,9 @@
 
 module Graphics.Lightarrow
     (   module Graphics.Lightarrow.Blit,
-        module Graphics.Lightarrow.Rasterize    ) where
+        module Graphics.Lightarrow.Rasterize,
+        module Graphics.Lightarrow.Rectangle    ) where
 
 import Graphics.Lightarrow.Blit
 import Graphics.Lightarrow.Rasterize
+import Graphics.Lightarrow.Rectangle
