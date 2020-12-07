@@ -24,9 +24,7 @@ pointInBox2 :: (Epsilon a, Floating a, Ord a) =>
                         -> a                -- ^ rotation of box about center
                         -> Point V2 a       -- ^ the point in question
                         -> Bool             -- ^ whether the point is inside the box
-pointInBox2 :: (Epsilon a, Floating a, Ord a)
-                => (Point V2 a, V2 a) -> a -> Point V2 a -> Bool
-pointInBox2 (center, V2 dx dy) r p = L.norm x < dx/2 && L.norm y < dy/2
+pointInBox2 (center, V2 dx dy) r p = L.norm x <= dx/2 && L.norm y <= dy/2
     where   dp  = p .-. center
             x   = L.project (L.angle r) dp
             y   = dp ^-^ x
@@ -37,9 +35,8 @@ pointInBox3 :: (Affine p, Conjugate a, RealFloat a, Linear.Affine.Diff p ~ V3) =
                         -> Quaternion a     -- ^ rotation of box about center
                         -> p a              -- ^ the point in question
                         -> Bool             -- ^ whether the point is inside the box
-pointInBox3 :: (Affine p, Conjugate a, RealFloat a, Linear.Affine.Diff p ~ V3)
-                => (p a, V3 a) -> Quaternion a -> p a -> Bool 
-pointInBox3 (c, d) r = pointInBox (c, d) (L.rotate r)
+pointInBox3 (c, d) r = pointInBox (c, d) (L.rotate (recip r))
+
 {-|
 
 Whether a point lies within (or on the boundary of) a space bounded by
