@@ -1,9 +1,10 @@
 module Data.Lightarrow.Color where
 
 import Data.Word
-{-
 
-We define a type for generic colors with red, green, blue, and alpha channels,
+{-|
+
+A type for representing colors as red, green, blue, and alpha channels,
 as well as some convenient transformations and constants.
 
 -}

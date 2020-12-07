@@ -1,10 +1,17 @@
-{-
+{-|
 
-We arrange everything we draw in a graph that, like a mobile, defines their
-relative positions in space. This is called a scene graph.
+We arrange all of our output values in a graph that, like a mobile, defines
+their relative positions in space. This is called a scene graph.
 
 -}
-module Data.Lightarrow.SceneGraph where
+module Data.Lightarrow.SceneGraph
+    (   SceneGraph,
+        SceneNode(..),
+        runTree,
+        _node,
+        _kids,
+        prune,
+        cameraViews ) where
 
 import Data.Graph
 import Data.Maybe
@@ -12,19 +19,15 @@ import Data.Tree
 import Data.Lightarrow.SceneTransform
 import Linear
 import Optics
-{-
 
-Each vertex of the graph is some species of Scene Node. Scene nodes represent either
-
-    1. a viewpoint (a ``camera'')
-    2. a group of nodes in the same coordinate frame
-    3. a new coordinate frame, defined by a scene transform
-    4. a function mapping scene transforms to another set
-
--}
 type SceneGraph a b = Tree (SceneNode a b)
 
-data SceneNode a b = Camera | Group | Frame (SceneTransform a) | Term (SceneTransform a -> b)
+-- | A vertex of a scene graph.  There are several species.
+data SceneNode a b
+    = Camera                            -- ^ Viewpoint
+    | Group                             -- ^ Group of nodes in the same coordinate frame
+    | Frame (SceneTransform a)          -- ^ Local coordinate frame
+    | Term (SceneTransform a -> b)      -- ^ Output based on a transformation
 
 instance Show a => Show (SceneNode a b)
     where   show Camera     = "Camera"
@@ -39,47 +42,59 @@ instance Semigroup (Tree (SceneNode a b)) where
 
 instance Monoid (Tree (SceneNode a b)) where
     mempty = Node Group []
-{-
 
-Given a |Tree| of scene nodes, we can calculate the combined output values of
+{-|
+
+Given a 'Tree' of scene nodes, calculate the combined output values of
 all its terms.
 
 -}
-runTree :: (Conjugate a, RealFloat a)
-            => ([b] -> b)
-                -> Tree (SceneNode a b)
-                -> b
+runTree :: (Conjugate a, RealFloat a) =>
+            ([b] -> b)                      -- ^ combine a list of outputs into one
+                -> Tree (SceneNode a b)     -- ^ the scene graph
+                -> b                        -- ^ the combined output
 runTree cat t = foldTree f t []
     where   f (Frame t)  gs     = col (map (\g -> g . (t :)) gs)
             f (Term g)   gs     = col (g . foldr composeXf identityXf . reverse : gs)
             f _          gs     = col gs
             col gs ts           = cat (map ($ ts) gs)
 
+-- | Read/write access to the node at the root of a scene graph
 _node :: Lens' (Tree (SceneNode a b)) (SceneNode a b)
 _node = lens rootLabel (\t n -> t { rootLabel = n })
 
+-- | Read/write access to the subtrees of the root of a scene graph
 _kids :: Lens' (Tree (SceneNode a b)) [Tree (SceneNode a b)]
 _kids = lens subForest (\t ks -> t { subForest = ks })
-{-
 
-Scene graphs can be huge. Often one encompasses a much larger scene than any
-rendering actually depicts. Given a rooted tree of scene nodes and a predicate
-on the first set, we can ``prune'' or ``cull'' branches of the tree whose
-descendants do not satisfy the predicate. A pruned tree provides more efficient
-access to the relevant parts of the unpruned tree.
+{-|
+
+Given a tree of scene nodes and a predicate on their transformations, remove
+the branches of the tree whose descendants do not satisfy the predicate.
 
 -}
 prune :: (Conjugate a, RealFloat a)
-            => (SceneTransform a -> Bool)
-                -> SceneTransform a
-                -> Tree (SceneNode a b)
-                -> Maybe (Tree (SceneNode a b))
+            => (SceneTransform a -> Bool)           -- ^ predicate
+                -> SceneTransform a                 -- ^ initial transformation
+                -> Tree (SceneNode a b)             -- ^ unpruned scene graph
+                -> Maybe (Tree (SceneNode a b))     -- ^ pruned scene graph
 prune p xf (Node (Frame t) kids)
         | null kidsP    = Nothing
         | otherwise     = Just (Node (Frame t) kidsP)
     where   kidsP   = mapMaybe (prune p (xf `composeXf` t)) kids
 prune p xf x = if p xf then Just x else Nothing
+{-
 
+Scene graphs can be huge. Often one encompasses a much larger scene than any
+rendering actually depicts. A pruned tree provides more efficient
+access to the relevant parts of the unpruned tree.
+
+-}
+{-|
+
+The view transformations for each camera node in a given scene graph
+
+-}
 cameraViews :: Tree (SceneNode Double b) -> [SceneTransform Double]
 cameraViews = camerasAux (Prelude.map CameraKey [0..]) . treeToGraph mkSceneNodeKey (CameraKey 0)
 
