@@ -157,7 +157,8 @@ translate2 (V2 x y) = TRS (V3 x y 0) (Quaternion 1 (V3 0 0 0)) (V3 1 1 1)
 
 -- | Add an extra offset to the translation part of a transformation
 addTranslate :: Num a => V3 a -> SceneTransform a -> SceneTransform a
-addTranslate t (TRS t0 r s) = TRS (t ^+^ t0) r s
+addTranslate t = _translation %~ (^+^ t)
+--addTranslate t (TRS t0 r s) = TRS (t ^+^ t0) r s
 
 -- | Translation to a given point in 3D
 locate :: Num a => Point V3 a -> SceneTransform a
@@ -185,8 +186,8 @@ rotateZ r = TRS (V3 0 0 0) (axisAngle (V3 0 0 1) r) (V3 1 1 1)
 
 -- | Multiply the rotation part of a transformation by an extra rotation
 addRotate :: (Epsilon a, RealFloat a) => Quaternion a -> SceneTransform a -> SceneTransform a
-addRotate :: RealFloat a => Quaternion a -> SceneTransform a -> SceneTransform a
-addRotate r (TRS t r0 s) = TRS t (r * r0) s
+addRotate r = _rotation %~ (r *)
+--addRotate r (TRS t r0 s) = TRS t (r * r0) s
 
 -- | Scaling in 3D
 scale :: Num a => V3 a -> SceneTransform a
