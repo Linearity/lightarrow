@@ -1,21 +1,33 @@
-module Graphics.UI.Lightarrow.Slider (slider) where
+module Graphics.UI.Lightarrow.Slider (slider, rectSlider) where
 
+import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Control.Monad.Writer.Strict
+import Data.Lightarrow.Color
+import Data.Lightarrow.SceneGraph
+import Data.Lightarrow.SceneTransform
 import Data.MonadicStreamFunction hiding (embed)
+import Graphics.Lightarrow.Rectangle
 import Graphics.UI.Lightarrow.Common
-import Optics
+import Linear
+import Optics hiding (over)
 import Simulation.Lightarrow.Mode
+import System.Lightarrow.Mouse
+import System.Lightarrow.Actuation
 import System.Lightarrow.Sensation
 
-slider  (_button :: Lens' (Sensation a) Bool)
-        (_cursor :: Lens' (Sensation a) (Double, Double))
-        (_x :: Lens' b (Double, Double, Double))
-        (_d :: Lens' b (Double, Double))
-        (_k :: Lens' b Double)
-        idle
-        hover
-        sliding
+-- | A horizontal slider element
+slider :: (MonadState s m, MonadWriter Any m, MonadFix m, Monoid b) =>
+            Lens' a Bool                                -- ^ button state
+                -> Lens' a (Double, Double)             -- ^ cursor position
+                -> Lens' s (Double, Double, Double)     -- ^ slider position
+                -> Lens' s (Double, Double)             -- ^ slider dimensions
+                -> Lens' s Double                       -- ^ slider knob position
+                -> Mode a b m ()                        -- ^ idle mode
+                -> Mode a b m ()                        -- ^ hover mode
+                -> Mode a b m c                         -- ^ sliding mode
+                -> Mode a b m ()                        -- ^ the slider
+slider  _button _cursor _x _d _k idle hover sliding
                 = chorus (do   rest (always (arrM stencil))
                                voice (toggle click sliding' released
                                         (pushdown above hover idle)))

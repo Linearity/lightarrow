@@ -9,4 +9,5 @@ other than source code, otherwise called a "resource" or "asset"
 
 -}
 class Platform m => ArtifactPlatform a m where
-    dummy :: Resources m -> a       -- ^ produce a default artifact
+    -- | Produce a default artifact
+    dummy :: Resources m -> a

@@ -6,4 +6,5 @@ import Data.Lightarrow.Artifact
 class ArtifactPlatform (Bitmap m) m => BitmapPlatform m where
     -- | The type of the image representation
     data Bitmap m
-    dimensions :: Bitmap m -> (Int, Int)    -- ^ width and height in pixels
+    -- | The width and height of a bitmap in pixels
+    dimensions :: Bitmap m -> (Int, Int)
