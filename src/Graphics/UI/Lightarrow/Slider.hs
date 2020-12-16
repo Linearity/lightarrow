@@ -48,4 +48,27 @@ slide _cursor _x _w _k a
                 xC  = a ^. _cursor % _1
             modify (_k .~ min 1 (max 0 ((xC - xL) / (xR - xL))))
 
+rectSlider :: (MousePlatform p, RectanglePlatform p, MonadFix m) =>
+                Mode    (Sensation p)
+                        ([Double], Tree (SceneNode Double (Actuation p)))
+                        (StateT     (   (   (Double, Double, Double),
+                                            (Double, Double)    ),
+                                        Double  )
+                                    (ReaderT Any (WriterT Any m))) ()
+rectSlider = slider button cursor (_1 % _1) (_1 % _2) _2 idle hover clicked
+    where   idle        = always barGray
+            hover       = forever (do   over (1/4) barRed
+                                        over (1/4) barGray)
+            clicked     = always barRed
+            barRed      = constM ((,) . (: []) <$> use _2 <*> draw Red)
+            barGray     = constM ((,) . (: []) <$> use _2 <*> draw Gray)
+            draw c      = drawSlider c <$> use (_1 % _1) <*> use (_1 % _2) <*> use _2
+            button      = lens (mousePressed leftMouseButton) (setMousePressed leftMouseButton)
+            cursor      = lens cursorPosition setCursorPosition
 
+drawSlider c (x, y, z) (w, h) k = Node Group [bar, knob]
+    where   bar     = Node (Frame (translate (V3 x y z)))
+                        [   Node (Term (drawRectangle c (w, h))) [] ]
+            knob    = Node (Frame (translate (V3 xK y (z + 1))))
+                        [   Node (Term (drawRectangle (Dark c) (2 * h, 2 * h))) []  ]
+            xK      = x - w/2 + k * w

@@ -4,14 +4,15 @@
 module Simulation.Lightarrow.Mode where
 
 import              Control.Applicative
-import              Control.Arrow
-import              Control.Monad.Cont                      hiding (join)
-import              Control.Monad.Reader                    hiding (join)
-import              Control.Monad.State                     hiding (join, StateT)
-import              Control.Monad.Trans.MSF                 (WriterT)
+import              Control.Monad.Cont hiding (join)
+import              Control.Monad.Reader hiding (join)
+import              Control.Monad.State hiding (join, StateT)
+import              Control.Monad.Writer.Strict
 import              Data.Tuple
-import              Data.Bifunctor                          hiding (first)
-import              FRP.BearRiver                           hiding (embed)
+import qualified    Data.Bifunctor as BF
+--import qualified    FRP.BearRiver as A (first, second)
+import qualified    FRP.BearRiver as A (identity)
+import              FRP.BearRiver hiding (first, second, embed)
 {-
 
 A mode is a section of a signal function. It begins at local time zero and terminates upon some later event.
@@ -165,6 +166,24 @@ mapMode :: (Monad m1, Monad m2) =>
                     -> Mode d e m2 f
 mapMode f (Mode sf) = Mode (f sf)
 
+firstM :: Applicative m => (a -> m c) -> Either a b -> m (Either c b)
+firstM f (Left a)   = fmap Left (f a)
+firstM _f (Right b) = pure (Right b)
+
+secondM :: Applicative m => (b -> m c) -> Either a b -> m (Either a c)
+secondM _f (Left a) = pure (Left a)
+secondM f (Right b) = fmap Right (f b)
+
+firstA :: ArrowChoice a => a b c -> a (Either b d) (Either c d)
+firstA sf = proc ebc -> case ebc of
+                            Left b      -> arr Left <<< sf -< b
+                            Right c     -> returnA -< Right c
+
+secondA :: ArrowChoice a => a b c -> a (Either d b) (Either d c)
+secondA sf = proc ebc -> case ebc of
+                            Left b      -> returnA -< Left b
+                            Right c     -> arr Right <<< sf -< c
+
 data Threether a b c = Links a | Mitte b | Rechts c
 
 newtype Voice a b m c = Voice { unVoice :: Mode a b m c }
@@ -195,6 +214,8 @@ mix m1 m2 = unVoice (liftA2 (,) (Voice m1) (Voice m2))
 Simultaneous modes with a secondary input/output channel may communicate with each other automatically on this channel using a bus.
 
 -}
+type BusMode c a b m = Mode a b (ReaderT c (WriterT c m))
+
 newtype BusVoice a b c m d = BusVoice { unBus :: Mode (a, c) (b, c) m d }
     deriving (Functor, Monad)
 
@@ -253,17 +274,17 @@ runBus :: (Monad m, Monoid c) =>
             Mode a b (ReaderT c (WriterT c m)) d
                 -> Mode (c, a) (c, b) m d
 runBus = mapMode ((>>> arr swizzle) . runWriterSF . runReaderSF)
-    where   swizzle (w, ebd) = bimap (w,) id ebd
+    where   swizzle (w, ebd) = BF.first (w,) ebd
 
 busSwap :: Monad m =>
             SF m (a1, a2) (Either (b1, b2) c)
                 -> SF m (a2, a1) (Either (b2, b1) c)
-busSwap sf = arr swap >>> sf >>> arr (bimap swap id)
+busSwap sf = arr swap >>> sf >>> arr (BF.first swap)
 
 
 
 embedMode fI fO = mapMode f
-    where   f sf   = arr fI >>> sf >>> arr (bimap fO id)
+    where   f sf   = arr fI >>> sf >>> arr (BF.first fO)
 {-
 
 Simultaneous activities can be layered together as concurrent "threads."
@@ -274,3 +295,24 @@ voice m = callCC (\ cc -> ContT (\ k -> void (mix m (runContT (cc ()) k))))
 rest m = voice (embedMode id (const mempty) m)
 busVoice m
     = callCC (\cc -> ContT (\k -> void (busMixM m (runContT (cc ()) k))))
+
+firstInputFromBus :: (Monoid c, Monad m) => SF (ReaderT c (WriterT c m)) a (c, a)
+firstInputFromBus = constM askBus &&& A.identity
+
+secondInputFromBus :: (Monoid c, Monad m) => SF (ReaderT c (WriterT c m)) a (a, c)
+secondInputFromBus = A.identity &&& constM askBus
+
+firstOutputToBus :: (Monoid c, Monad m) => SF (ReaderT c (WriterT c m)) (Either (c, a) b) (Either a b)
+firstOutputToBus = arrM (firstM (\(c, b) -> tellBus c >> return b))
+
+secondOutputToBus :: (Monoid c, Monad m) => SF (ReaderT c (WriterT c m)) (Either (a, c) b) (Either a b)
+secondOutputToBus = arrM (firstM (\(b, c) -> tellBus c >> return b))
+
+askBus :: (Monoid a, Monad m) => ClockInfo (ReaderT a (WriterT a m)) a
+askBus = lift ask
+
+asksBus :: (Monoid a, Monad m) => (a -> b) -> ClockInfo (ReaderT a (WriterT a m)) b
+asksBus = lift . asks
+
+tellBus :: (Monoid a, Monad m) => a -> ClockInfo (ReaderT a (WriterT a m)) ()
+tellBus = tell;

@@ -62,3 +62,21 @@ window _button _cursor _x _d dragged idle items
                                     return (a & _cursor .~ c)
             xfDraw          = do    (x, y, z)   <- gets (view _x)
                                     return (\(k, b) -> (k, Node (Frame (translate (V3 x y (z + 1)))) [b]))
+
+rectWindow :: (MonadFix m, RectanglePlatform p, MousePlatform p, Monoid k) =>
+                BusMode Any (Sensation p) (k, SceneGraph Double (Actuation p)) m e
+                    -> Mode     (Sensation p)
+                                (k, Tree (SceneNode Double (Actuation p)))
+                                (StateT (   (Double, Double, Double),
+                                            (Double, Double)    ) m)
+                                (d, e)
+rectWindow = window _button _cursor _1 _2 drag idle
+    where   _button     = lens  (mousePressed leftMouseButton)
+                                (setMousePressed leftMouseButton)
+            _cursor     = lens cursorPosition setCursorPosition
+            drag        = always (constM (draw Red))
+            idle        = always (constM (draw Blue))
+            draw c      = do    (x,y,z)     <- use _1
+                                d           <- use _2
+                                return (Node (Frame (translate (V3 x y z)))
+                                            [Node (Term (drawRectangle c d)) []])
