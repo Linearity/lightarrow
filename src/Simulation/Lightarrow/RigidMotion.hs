@@ -8,10 +8,11 @@ motions, and some means of abstracting them over their details
 module Simulation.Lightarrow.RigidMotion where
 
 import Control.Monad.Fix
-import Data.AffineSpace
 import Data.Fixed
-import Data.VectorSpace
 import FRP.BearRiver
+import Linear
+import Linear.Affine
+import Simulation.Lightarrow.Mode
 {-
 
 The most basic motion is linear translation, or `sliding`, from one point to
@@ -19,15 +20,18 @@ another. It is a point that varies linearly with time; when it is done it
 remains at the last point forever.
 
 -}
-slide p1 p2 dt = move `switch` const stop
+
+slide :: (Monad m, Affine p) =>
+            p Time
+                -> p Time
+                -> Time
+                -> Mode a (p Time) m ()
+slide p1 p2 dt = over dt move
     where   move    = proc _ -> do
                         t      <-  time  -< ()
                         let k  = (dt - t) / dt
                             p  = p1 .+^ (1 - k) *^ (p2 .-. p1)
-                        done    <-  edge  -< k <= 0
-                        returnA -< (p, done)
-            stop    = constant p2
-
+                        returnA -< p
 
 rotation :: (MonadFix m, RealFloat a) => SF m a a
 rotation   = proc ω  -> do
