@@ -5,8 +5,10 @@ their relative positions in space. This is called a scene graph.
 
 -}
 module Data.Lightarrow.SceneGraph
-    (   SceneGraph,
+    (   module Data.Tree,
+        SceneGraph,
         SceneNode(..),
+        frame,
         runTree,
         _node,
         _kids,
@@ -42,6 +44,10 @@ instance Semigroup (Tree (SceneNode a b)) where
 
 instance Monoid (Tree (SceneNode a b)) where
     mempty = Node Group []
+
+-- | Add a coordinate transformation above the root of a scene graph
+frame :: SceneTransform a -> Tree (SceneNode a b) -> Tree (SceneNode a b)
+frame xf = Node (Frame xf) . (: [])
 
 {-|
 
