@@ -33,13 +33,6 @@ periodically x = proc p -> do
                     rec occur'  <-  iPre NoEvent            -< occur
                         occur   <-  restart (afterInput x)  -< (p, occur')
                     returnA -< occur
-{-
-
-We can represent an impulse as a signal by knowing the length of the time step.
-
--}
-impulse :: (Monad m, VectorSpace a DTime) => SF m (Event a) (Event a)
-impulse = arrTime (\dt -> fmap (^/ dt))
 
 instance Semigroup a => Semigroup (Event a) where
     Event a1    <> Event a2     = Event (a1 <> a2)
