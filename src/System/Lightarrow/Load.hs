@@ -5,7 +5,7 @@ import           Control.Monad
 import           Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as B
 import           FRP.BearRiver
-import           Simulation.Lightarrow.Mode
+import           Simulation.Lightarrow.Task
 import           System.Lightarrow.Platform
 import           System.IO
 
@@ -54,8 +54,8 @@ makePaths dir ext = [(name, prefix ++ show name ++ suffix) | name <- [toEnum 0 .
     where  prefix  = dir ++ "/"
            suffix  = "." ++ ext
 
-loader r a = runMode (liftPF (load r =<< request r a)) constant
+loader r a = runTask (liftPF (load r =<< request r a)) constant
 
-reloader r a = runMode (liftPF (request r a)) (constM . liftPF . load r)
+reloader r a = runTask (liftPF (request r a)) (constM . liftPF . load r)
 
 loadMany rename r = traverse (load r <=< request r . rename)

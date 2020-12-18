@@ -42,7 +42,7 @@ library
                        Simulation.Lightarrow.Cue
                        Simulation.Lightarrow.Event
                        Simulation.Lightarrow.Kinematics
-                       Simulation.Lightarrow.Mode
+                       Simulation.Lightarrow.Task
                        Simulation.Lightarrow.RigidMotion
                        Sound.Lightarrow
                        Sound.Lightarrow.Playback

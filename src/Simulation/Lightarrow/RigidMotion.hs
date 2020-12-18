@@ -12,7 +12,7 @@ import Data.Fixed
 import FRP.BearRiver
 import Linear
 import Linear.Affine
-import Simulation.Lightarrow.Mode
+import Simulation.Lightarrow.Task
 {-
 
 The most basic motion is linear translation, or `sliding`, from one point to
@@ -25,8 +25,8 @@ slide :: (Monad m, Affine p) =>
             p Time
                 -> p Time
                 -> Time
-                -> Mode a (p Time) m ()
-slide p1 p2 dt = over dt move
+                -> Task a (p Time) m ()
+slide p1 p2 dt = interval dt move
     where   move    = proc _ -> do
                         t      <-  time  -< ()
                         let k  = (dt - t) / dt

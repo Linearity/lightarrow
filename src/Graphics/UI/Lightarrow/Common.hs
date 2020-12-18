@@ -11,7 +11,7 @@ import Control.Monad.State
 import Data.MonadicStreamFunction hiding (embed)
 import FRP.BearRiver hiding (embed)
 import Optics
-import Simulation.Lightarrow.Mode
+import Simulation.Lightarrow.Task
 
 {-|
 
@@ -24,7 +24,7 @@ oneShot :: Monad m =>
                 SF m a (Event b)                        -- ^ "firing" event detector
                     -> SF m a (Event c)                 -- ^ "reset" event detector
                     -> (a -> ClockInfo m (Event d))     -- ^ output event based on input
-                    -> Mode a (Event d) m b             -- ^ firing activity
+                    -> Task a (Event d) m b             -- ^ firing activity
 oneShot shoot reset f = toggle shoot fire reset idle
     where   fire    = moment f >> always (constant NoEvent)
             idle    = always (constant NoEvent)
@@ -32,9 +32,9 @@ oneShot shoot reset f = toggle shoot fire reset idle
 -- | An activity that is in one of two modes depending on some state of the input
 pushdown :: Monad m =>
                 (a -> ClockInfo m Bool)     -- ^ control state based on input
-                    -> Mode a b1 m ()       -- ^ "on" mode
-                    -> Mode a b1 m ()       -- ^ "off" mode
-                    -> Mode a b1 m b2       -- ^ toggling activity
+                    -> Task a b1 m ()       -- ^ "on" mode
+                    -> Task a b1 m ()       -- ^ "off" mode
+                    -> Task a b1 m b2       -- ^ toggling activity
 pushdown pushed on = toggle (indeed pushed) on (indeedNot pushed)
 
 {-|
@@ -45,10 +45,10 @@ from one mode to the other or vice versa
 -}
 toggle :: Monad m =>
             SF m a (Event c)            -- ^ on-to-off detector
-                -> Mode a b m d         -- ^ "on" mode
+                -> Task a b m d         -- ^ "on" mode
                 -> SF m a (Event d)     -- ^ off-to-on detector
-                -> Mode a b m c         -- ^ "off" mode
-                -> Mode a b m e         -- ^ toggling activity
+                -> Task a b m c         -- ^ "off" mode
+                -> Task a b m e         -- ^ toggling activity
 toggle up on down off = forever (do  onlyUntil (arr fst >>> up) off
                                      onlyUntil (arr fst >>> down) on)
 
@@ -61,7 +61,7 @@ in the same way the the cursor moves
 drag :: MonadState s m =>
             Lens' a (Double, Double)                    -- ^ cursor position
                 -> Lens' s (Double, Double, Double)     -- ^ element position
-                -> Mode a () m b                        -- ^ dragging activity
+                -> Task a () m b                        -- ^ dragging activity
 drag _cursor _x
         = do    a0  <- sample
                 d   <- xfCursor _x (a0 ^. _cursor)

@@ -9,11 +9,12 @@ import Data.Lightarrow.SceneTransform
 import Data.Lightarrow.SceneGraph
 import Data.MonadicStreamFunction hiding (embed, first)
 import FRP.BearRiver hiding (embed, first)
+import FRP.BearRiver.Monad
 import Graphics.Lightarrow.Rectangle
 import Graphics.UI.Lightarrow.Common
 import Linear (V3(..))
 import Optics
-import Simulation.Lightarrow.Mode
+import Simulation.Lightarrow.Task
 import System.Lightarrow.Mouse
 import System.Lightarrow.Sensation
 import System.Lightarrow.Actuation
@@ -36,16 +37,16 @@ window :: (Monad m, MonadTrans t, MonadFix (t m), MonadState s (t m), Monoid k) 
                 -> Lens' a (Double, Double)                         -- ^ cursor position
                 -> Lens' s (Double, Double, Double)                 -- ^ window position
                 -> Lens' s (Double, Double)                         -- ^ window dimensions
-                -> Mode a (SceneGraph Double b) (t m) c             -- ^ drag mode
-                -> Mode a (SceneGraph Double b) (t m) ()            -- ^ idle mode
-                -> BusMode Any a (k, SceneGraph Double b) m e       -- ^ window elements
-                -> Mode a (k, SceneGraph Double b) (t m) (d, e)     -- ^ the window 
+                -> Task a (SceneGraph Double b) (t m) c             -- ^ drag mode
+                -> Task a (SceneGraph Double b) (t m) ()            -- ^ idle mode
+                -> BusTask Any a (k, SceneGraph Double b) m e       -- ^ window elements
+                -> Task a (k, SceneGraph Double b) (t m) (d, e)     -- ^ the window 
 window _button _cursor _x _d dragged idle items
             = newBus
-                (busMixM    (mapMode (>>> arr (first (mempty,)))
+                (busMixM    (mapTask (>>> arr (first (mempty,)))
                                 (toggle click dragged' released (noBus idle)))
                             items')
-    where   items'          = bus (mapMode transform (runBus items))
+    where   items'          = bus (mapTask transform (runBus items))
             click           = proc a -> do
                                 e       <- mouseClick _button _cursor _x _d -< a
                                 inItem  <- constM (lift ask)                -< ()   -- lift into ClockInfo
@@ -55,7 +56,7 @@ window _button _cursor _x _d dragged idle items
             released        = falling (return . view _button)
             transform sf    = proc (c, a) -> do
                                 a'      <- arrM xfInput     -< a
-                                ecbd    <- liftTransSF sf   -< (c, a')
+                                ecbd    <- liftSF sf        -< (c, a')
                                 f       <- constM xfDraw    -< ()
                                 returnA -< first (\(c, b) -> (c, f b)) ecbd
             xfInput a       = do    c   <- xfCursor _x (a ^. _cursor)
@@ -64,8 +65,8 @@ window _button _cursor _x _d dragged idle items
                                     return (\(k, b) -> (k, Node (Frame (translate (V3 x y (z + 1)))) [b]))
 
 rectWindow :: (MonadFix m, RectanglePlatform p, MousePlatform p, Monoid k) =>
-                BusMode Any (Sensation p) (k, SceneGraph Double (Actuation p)) m e
-                    -> Mode     (Sensation p)
+                BusTask Any (Sensation p) (k, SceneGraph Double (Actuation p)) m e
+                    -> Task     (Sensation p)
                                 (k, Tree (SceneNode Double (Actuation p)))
                                 (StateT (   (Double, Double, Double),
                                             (Double, Double)    ) m)

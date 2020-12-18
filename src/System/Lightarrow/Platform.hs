@@ -7,7 +7,8 @@ import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
-import           Simulation.Lightarrow.Mode
+import           FRP.BearRiver
+import           Simulation.Lightarrow.Task
 
 class Monad m => Platform m where
     data Resources m :: *
@@ -44,5 +45,5 @@ instance MonadPlatform m a
     liftPlatform = lift . liftPlatform
 
 instance MonadPlatform m a
-            => MonadPlatform (Mode b c m) a where
+            => MonadPlatform (Task b c m) a where
     liftPlatform = lift . liftPlatform
