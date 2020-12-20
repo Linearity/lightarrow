@@ -32,11 +32,6 @@ library
                        Graphics.Lightarrow.Blit
                        Graphics.Lightarrow.Rasterize
                        Graphics.Lightarrow.Rectangle
-                       Graphics.UI.Lightarrow
-                       Graphics.UI.Lightarrow.Common
-                       Graphics.UI.Lightarrow.Modulate
-                       Graphics.UI.Lightarrow.Slider
-                       Graphics.UI.Lightarrow.Window
                        Simulation.Lightarrow
                        Simulation.Lightarrow.Collision
                        Simulation.Lightarrow.Cue
