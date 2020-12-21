@@ -26,10 +26,10 @@ type SceneGraph a b = Tree (SceneNode a b)
 
 -- | A vertex of a scene graph.  There are several species.
 data SceneNode a b
-    = Camera                            -- ^ Viewpoint
-    | Group                             -- ^ Group of nodes in the same coordinate frame
-    | Frame (SceneTransform a)          -- ^ Local coordinate frame
-    | Term (SceneTransform a -> b)      -- ^ Output based on a transformation
+    = Camera                            -- ^ viewpoint
+    | Group                             -- ^ group of nodes in the same coordinate frame
+    | Frame (SceneTransform a)          -- ^ local coordinate frame
+    | Term (SceneTransform a -> b)      -- ^ output based on a transformation
 
 instance Show a => Show (SceneNode a b)
     where   show Camera     = "Camera"
@@ -37,16 +37,16 @@ instance Show a => Show (SceneNode a b)
             show (Frame t)  = "Frame " ++ show t
             show (Term _)   = "Term <function>"
 
-instance Semigroup (Tree (SceneNode a b)) where
+instance Semigroup (SceneGraph a b) where
     Node Group ks <> t  = Node Group (t:ks)
     t <> Node Group ks  = Node Group (t:ks)
     t1 <> t2            = Node Group [t1, t2]
 
-instance Monoid (Tree (SceneNode a b)) where
+instance Monoid (SceneGraph a b) where
     mempty = Node Group []
 
 -- | Add a coordinate transformation above the root of a scene graph
-frame :: SceneTransform a -> Tree (SceneNode a b) -> Tree (SceneNode a b)
+frame :: SceneTransform a -> SceneGraph a b -> SceneGraph a b
 frame xf = Node (Frame xf) . (: [])
 
 {-|
@@ -57,7 +57,7 @@ all its terms.
 -}
 runTree :: (Conjugate a, RealFloat a) =>
             ([b] -> b)                      -- ^ combine a list of outputs into one
-                -> Tree (SceneNode a b)     -- ^ the scene graph
+                -> SceneGraph a b     -- ^ the scene graph
                 -> b                        -- ^ the combined output
 runTree cat t = foldTree f t []
     where   f (Frame t)  gs     = col (map (\g -> g . (t :)) gs)
@@ -66,11 +66,11 @@ runTree cat t = foldTree f t []
             col gs ts           = cat (map ($ ts) gs)
 
 -- | Read/write access to the node at the root of a scene graph
-_node :: Lens' (Tree (SceneNode a b)) (SceneNode a b)
+_node :: Lens' (SceneGraph a b) (SceneNode a b)
 _node = lens rootLabel (\t n -> t { rootLabel = n })
 
 -- | Read/write access to the subtrees of the root of a scene graph
-_kids :: Lens' (Tree (SceneNode a b)) [Tree (SceneNode a b)]
+_kids :: Lens' (SceneGraph a b) [SceneGraph a b]
 _kids = lens subForest (\t ks -> t { subForest = ks })
 
 {-|
@@ -82,8 +82,8 @@ the branches of the tree whose descendants do not satisfy the predicate.
 prune :: (Conjugate a, RealFloat a)
             => (SceneTransform a -> Bool)           -- ^ predicate
                 -> SceneTransform a                 -- ^ initial transformation
-                -> Tree (SceneNode a b)             -- ^ unpruned scene graph
-                -> Maybe (Tree (SceneNode a b))     -- ^ pruned scene graph
+                -> SceneGraph a b             -- ^ unpruned scene graph
+                -> Maybe (SceneGraph a b)     -- ^ pruned scene graph
 prune p xf (Node (Frame t) kids)
         | null kidsP    = Nothing
         | otherwise     = Just (Node (Frame t) kidsP)

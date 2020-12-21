@@ -1,4 +1,4 @@
 module Sound.Lightarrow
-    (   module Sound.Lightarrow.Playback    ) where
+    (   module Sound.Lightarrow.Mixer    ) where
 
-import Sound.Lightarrow.Playback
+import Sound.Lightarrow.Mixer

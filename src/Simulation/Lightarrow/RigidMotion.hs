@@ -13,19 +13,14 @@ import FRP.BearRiver
 import Linear
 import Linear.Affine
 import Simulation.Lightarrow.Task
-{-
 
-The most basic motion is linear translation, or `sliding`, from one point to
-another. It is a point that varies linearly with time; when it is done it
-remains at the last point forever.
-
--}
-
+-- | Over a given interval, put out a point that slides in a straight line from
+-- one point to another.
 slide :: (Monad m, Affine p) =>
-            p Time
-                -> p Time
-                -> Time
-                -> Task a (p Time) m ()
+            p Time                          -- ^ initial point
+                -> p Time                   -- ^ final point
+                -> Time                     -- ^ interval
+                -> Task a (p Time) m ()     -- ^ sliding activity
 slide p1 p2 dt = interval dt move
     where   move    = proc _ -> do
                         t      <-  time  -< ()
@@ -33,6 +28,9 @@ slide p1 p2 dt = interval dt move
                             p  = p1 .+^ (1 - k) *^ (p2 .-. p1)
                         returnA -< p
 
+-- | A signal function whose input signal is an angular velocity in radians
+-- per second and whose output signal is the integrated angle, starting at 0
+-- and never exceeding 2π.
 rotation :: (MonadFix m, RealFloat a) => SF m a a
 rotation   = proc ω  -> do
                 t   <-  time    -< ()

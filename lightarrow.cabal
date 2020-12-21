@@ -40,7 +40,7 @@ library
                        Simulation.Lightarrow.Task
                        Simulation.Lightarrow.RigidMotion
                        Sound.Lightarrow
-                       Sound.Lightarrow.Playback
+                       Sound.Lightarrow.Mixer
                        System.Lightarrow
                        System.Lightarrow.Actuation
                        System.Lightarrow.Joystick

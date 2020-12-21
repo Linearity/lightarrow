@@ -10,13 +10,19 @@ import qualified Control.Monad.Trans.State.Strict as StrictS
 import           FRP.BearRiver
 import           Simulation.Lightarrow.Task
 
+-- | A monad that represents actions that a platform takes, usually input and
+-- output
 class Monad m => Platform m where
+    -- | Resources that the platform acquires and uses
     data Resources m :: *
+    -- | Acquire platform resources and return them to the application
     setup   :: m (Resources m)
 
+-- | Monads whose actions can be lifted to platform actions
 class (Monad m, Platform a) => MonadPlatform m a where
     liftPlatform :: a b -> m b
 
+-- | A synonym for 'liftPlatform'
 liftPF :: MonadPlatform m a => a b -> m b
 liftPF = liftPlatform
 
