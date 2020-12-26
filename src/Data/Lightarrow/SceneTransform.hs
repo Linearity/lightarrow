@@ -8,28 +8,29 @@ import Optics
 
 -- | A transformation of 3D space with multiple representations
 data SceneTransform a
-        -- | Decomposition into translation, rotation, and scaling
+        -- | Decomposition into translation <- rotation <- scaling
         = TRS {
             trsT :: V3 a,           -- ^ translation vector
             trsR :: Quaternion a,   -- ^ rotation quaternion
             trsS :: V3 a            -- ^ scaling vector
             }
-        -- | Generic 4×4 matrix
-        | MatrixTransform (M44 a)
+        -- | Decomposition into scaling <- rotation <- translation
+        | SRT {
+            srtS :: V3 a,           -- ^ scaling vector
+            srtR :: Quaternion a,   -- ^ rotation quaternion
+            srtT :: V3 a            -- ^ translation vector
+            }
     deriving Show
 
 -- | The translation part of a given transformation
 getTranslation :: SceneTransform a -> V3 a
 getTranslation (TRS t _ _) = t
-getTranslation (MatrixTransform m) = V3 x y z
-    where   V4 _ _ _ (V4 x y z _w) = transpose m
+getTranslation (SRT _ _ t) = t
 
 -- | Replace the translation part of a transformation
 setTranslation :: V3 a -> SceneTransform a -> SceneTransform a
 setTranslation t (TRS _ r s) = TRS t r s
-setTranslation (V3 x y z) (MatrixTransform m) = MatrixTransform m'
-    where   m'                          = transpose (V4 c1 c2 c3 (V4 x y z w))
-            V4 c1 c2 c3 (V4 _ _ _ w)    = transpose m
+setTranslation t (SRT s r _) = SRT s r t
 
 -- | Read/write access to the translation part of a transformation
 _translation :: Lens' (SceneTransform a) (V3 a)
@@ -38,43 +39,12 @@ _translation = lens getTranslation (flip setTranslation)
 -- | The rotation part of a given transformation
 getRotation :: (Epsilon a, Floating a, Ord a) => SceneTransform a -> Quaternion a
 getRotation (TRS _ r _) = r
-getRotation (MatrixTransform m) = Quaternion q1 (V3     (signum (r32 - r23) * q2)
-                                                        (signum (r13 - r31) * q3)
-                                                        (signum (r21 - r12) * q4))
-    where   q1  | r11 + r22 + r33 > eta     = sqrt (1 + r11 + r22 + r33) / 2
-                | otherwise                 = sqrt (    (       (r32 - r23) ** 2
-                                                            +   (r13 - r31) ** 2
-                                                            +   (r21 - r12) ** 2)
-                                                        / (3 - r11 - r22 - r33)     )
-            q2  | r11 - r22 - r33 > eta     = sqrt (1 + r11 - r22 - r33) / 2
-                | otherwise                 = sqrt (    (       (r32 - r23) ** 2
-                                                            +   (r12 + r21) ** 2
-                                                            +   (r31 - r13) ** 2)
-                                                        / (3 - r11 + r22 + r33)     )
-            q3  | (-r11) + r22 - r33 > eta  = sqrt (1 - r11 + r22 - r33) / 2
-                | otherwise                 = sqrt (    (       (r13 - r31) ** 2
-                                                            +   (r12 + r21) ** 2
-                                                            +   (r23 + r32) ** 2)
-                                                        / (3 + r11 - r22 + r33)     )
-            q4  | (-r11) - r22 + r33 > eta  = sqrt (1 - r11 - r22 + r33) / 2
-                | otherwise                 = sqrt (    (       (r21 - r12) ** 2
-                                                            +   (r31 + r13) ** 2
-                                                            +   (r32 + r23) ** 2)
-                                                        / (3 + r11 + r22 - r33)     )
-            eta                             = 0
-            V4 r11 r21 r31 _                = normalize c1
-            V4 r12 r22 r32 _                = normalize c2
-            V4 r13 r23 r33 _                = normalize c3
-            V4 c1 c2 c3 _                   = transpose m
+getRotation (SRT _ r _) = r
 
 -- | Replace the rotation part of a transformation
 setRotation :: Floating a => Quaternion a -> SceneTransform a -> SceneTransform a
 setRotation r (TRS t _ s) = TRS t r s
-setRotation r (MatrixTransform m) = MatrixTransform m'
-    where   m'              = scaled (V4 (norm c1) (norm c2) (norm c3) 1)
-                                !*! mkTransformation r (V3 x y z)
-            V4 x y z _      = c4
-            V4 c1 c2 c3 c4  = transpose m
+setRotation r (SRT s _ t) = SRT s r t
 
 -- | Read/write access to the translation part of a transformation
 _rotation :: (Epsilon a, Floating a, Ord a) => Lens' (SceneTransform a) (Quaternion a)
@@ -83,21 +53,12 @@ _rotation = lens getRotation (flip setRotation)
 -- | The scaling part of a given transformation
 getScale :: Floating a => SceneTransform a -> V3 a
 getScale (TRS _ _ s) = s
-getScale (MatrixTransform m) = V3 sx sy sz
-    where   V4 c1 c2 c3 _   = transpose m
-            sx              = norm c1
-            sy              = norm c2
-            sz              = norm c3
+getScale (SRT s _ _) = s
 
 -- | Replace the scaling part of a transformation
 setScale :: (Epsilon a, Floating a) => V3 a -> SceneTransform a -> SceneTransform a
 setScale s (TRS t r _) = TRS t r s
-setScale (V3 sx sy sz) (MatrixTransform m) = MatrixTransform m'
-    where   m'              = transpose (V4 c1' c2' c3' c4)
-            c1'             = sx *^ normalize c1
-            c2'             = sy *^ normalize c2
-            c3'             = sz *^ normalize c3
-            V4 c1 c2 c3 c4  = transpose m
+setScale s (SRT _ r t) = SRT s r t
 
 -- | Read/write access to the scaling part of a transformation
 _scale :: (Epsilon a, Floating a) => Lens' (SceneTransform a) (V3 a)
@@ -108,11 +69,24 @@ composeXf :: (Conjugate a, RealFloat a)
                 => SceneTransform a
                     -> SceneTransform a
                     -> SceneTransform a
-composeXf (MatrixTransform m1) xf2 = MatrixTransform (m1 !*! toMatrix xf2)
-composeXf xf1 (MatrixTransform m2) = MatrixTransform (toMatrix xf1 !*! m2)
 composeXf (TRS t1 r1 s1) (TRS t2 r2 s2) = composite
     where   composite   = TRS tC rC sC
             tC          = t1 ^+^ Linear.rotate r1 (s1 * t2)
+            rC          = r1 * r2
+            sC          = s1 * s2
+composeXf (TRS t1 r1 s1) (SRT s2 r2 t2) = composite
+    where   composite   = TRS tC rC sC
+            tC          = t1 ^+^ Linear.rotate r1 ((s1 * s2) * Linear.rotate r2 t2)
+            rC          = r1 * r2
+            sC          = s1 * s2
+composeXf (SRT s1 r1 t1) (TRS t2 r2 s2) = composite
+    where   composite   = TRS tC rC sC
+            tC          = s1 * Linear.rotate r1 (t1 ^+^ t2)
+            rC          = r1 * r2
+            sC          = s1 * s2
+composeXf (SRT s1 r1 t1) (SRT s2 r2 t2) = composite
+    where   composite   = SRT sC rC tC
+            tC          = t1 ^+^ s2 * Linear.rotate r2 t2
             rC          = r1 * r2
             sC          = s1 * s2
 
@@ -122,15 +96,17 @@ identityXf = TRS (V3 0 0 0) (Quaternion 1 (V3 0 0 0)) (V3 1 1 1)
 
 -- | The inverse of a given transformation, always in the matrix representation
 inverseXf :: (Conjugate a, RealFloat a) => SceneTransform a -> SceneTransform a
-inverseXf t@TRS {}              = inverseXf (MatrixTransform (toMatrix t))
-inverseXf (MatrixTransform m)   = MatrixTransform (inv44 m)
+inverseXf (TRS t r s) = SRT (recip s) (recip r) (negate t)
+inverseXf (SRT s r t) = TRS (negate t) (recip r) (recip s)
 
 -- | A matrix representing a given transformation
 toMatrix :: Num a => SceneTransform a -> M44 a
 toMatrix (TRS t r s) = mTR !*! mS
     where   mTR = mkTransformation r t
             mS  = scaled (point s)
-toMatrix (MatrixTransform m) = m
+toMatrix (SRT s r t) = mS !*! mTR
+    where   mTR = mkTransformation r t
+            mS  = scaled (point s)
 
 -- | A translate-rotate-scale transformation in the \(xy\)-plane
 trs2 :: (Epsilon a, Floating a) => V2 a -> a -> V2 a -> SceneTransform a
@@ -212,12 +188,9 @@ center :: (BitmapPlatform m, Floating b)
 center b (TRS t r s) = TRS (t ^-^ offset) r s
     where   offset  = s * fmap ((/ 2) . fromIntegral) (V3 w h 0)
             (w, h)  = dimensions b
-center b (MatrixTransform m) = MatrixTransform (transpose (V4 c1 c2 c3 (t ^-^ point offset)))
-    where   offset          = s * fmap ((/ 2) . fromIntegral) (V3 w h 0)
-            (w, h)          = dimensions b
-            s               = V3 (norm c1) (norm c2) 1
-            V4 c1 c2 c3 t   = transpose m
-
+center b (SRT s r t) = SRT s r (t ^-^ offset) 
+    where   offset  = fmap ((/ 2) . fromIntegral) (V3 w h 0)
+            (w, h)  = dimensions b
 {-|
 
 A parallax translation in the \(xy\)-plane that emulates perspective projection
@@ -229,8 +202,38 @@ screen distance minus the \(z\)-component of the translation).
 parallax :: Floating a => a -> SceneTransform a -> SceneTransform a 
 parallax ds (TRS (V3 x y z) r s) = TRS (V3 (x * k) (y * k) z) r s
     where   k = ds / (ds - z)
-parallax ds (MatrixTransform m1) = MatrixTransform m2
-    where   V4 c1 c2 c3 c4  = transpose m1
-            V4 x y z w      = c4
-            k               = ds / (ds - z)
-            m2              = transpose (V4 c1 c2 c3 (V4 (k * x) (k * y) z w))
+
+-- | Convert a transformation whose upper-left 3x3 matrix is orthogonal into
+-- a quaternion representing the same rotation.  The formula comes from:
+-- Soheil Sarabandi and Federico Thomas. Accurate Computation of Quaternions
+-- from Rotation Matrices. Advances in Robot Kinematics 2018.
+-- https://doi.org/10.1007/978-3-319-93188-3_5
+matrixToQuat :: (Floating a, Epsilon a, Ord a) => M44 a -> Quaternion a
+matrixToQuat m = Quaternion q1 (V3  (signum (r32 - r23) * q2)
+                                    (signum (r13 - r31) * q3)
+                                    (signum (r21 - r12) * q4))
+    where   q1  | r11 + r22 + r33 > eta     = sqrt (1 + r11 + r22 + r33) / 2
+                | otherwise                 = sqrt (    (       (r32 - r23) ** 2
+                                                            +   (r13 - r31) ** 2
+                                                            +   (r21 - r12) ** 2)
+                                                        / (3 - r11 - r22 - r33)     )
+            q2  | r11 - r22 - r33 > eta     = sqrt (1 + r11 - r22 - r33) / 2
+                | otherwise                 = sqrt (    (       (r32 - r23) ** 2
+                                                            +   (r12 + r21) ** 2
+                                                            +   (r31 - r13) ** 2)
+                                                        / (3 - r11 + r22 + r33)     )
+            q3  | (-r11) + r22 - r33 > eta  = sqrt (1 - r11 + r22 - r33) / 2
+                | otherwise                 = sqrt (    (       (r13 - r31) ** 2
+                                                            +   (r12 + r21) ** 2
+                                                            +   (r23 + r32) ** 2)
+                                                        / (3 + r11 - r22 + r33)     )
+            q4  | (-r11) - r22 + r33 > eta  = sqrt (1 - r11 - r22 + r33) / 2
+                | otherwise                 = sqrt (    (       (r21 - r12) ** 2
+                                                            +   (r31 + r13) ** 2
+                                                            +   (r32 + r23) ** 2)
+                                                        / (3 + r11 + r22 - r33)     )
+            eta                             = 0
+            V4 r11 r21 r31 _                = normalize c1
+            V4 r12 r22 r32 _                = normalize c2
+            V4 r13 r23 r33 _                = normalize c3
+            V4 c1 c2 c3 _                   = transpose m

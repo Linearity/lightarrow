@@ -57,7 +57,7 @@ all its terms.
 -}
 runTree :: (Conjugate a, RealFloat a) =>
             ([b] -> b)                      -- ^ combine a list of outputs into one
-                -> SceneGraph a b     -- ^ the scene graph
+                -> SceneGraph a b           -- ^ the scene graph
                 -> b                        -- ^ the combined output
 runTree cat t = foldTree f t []
     where   f (Frame t)  gs     = col (map (\g -> g . (t :)) gs)

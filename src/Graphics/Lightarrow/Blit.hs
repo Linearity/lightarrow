@@ -32,13 +32,5 @@ sceneBlit :: BlitPlatform p =>
                     -> SceneTransform Double    -- ^ transformation
                     -> Actuation p              -- ^ the drawing command
 sceneBlit b c xf = blit b c (sX, sY) (x, y, z)
-    where   V3 x y z    = t
-            V3 sX sY _  = s
-            (t, s)      = case center b xf of
-                            TRS t _r s
-                                -> (t, s)
-                            MatrixTransform m
-                                -> let  V4 c1 c2 c3 c4  = transpose m
-                                        V4 x y z _w     = c4
-                                    in (    V3 x y z,
-                                            V3 (norm c1) (norm c2) (norm c3)    )
+    where   V3 x y z    = getTranslation (center b xf)
+            V3 sX sY _  = getScale (center b xf)
