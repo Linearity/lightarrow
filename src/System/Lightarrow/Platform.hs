@@ -19,37 +19,37 @@ class Monad m => Platform m where
     setup   :: m (Resources m)
 
 -- | Monads whose actions can be lifted to platform actions
-class (Monad m, Platform a) => MonadPlatform m a where
+class (Monad m, Platform a) => MonadPlatform a m where
     liftPlatform :: a b -> m b
 
 -- | A synonym for 'liftPlatform'
-liftPF :: MonadPlatform m a => a b -> m b
+liftPF :: MonadPlatform a m => a b -> m b
 liftPF = liftPlatform
 
-instance MonadPlatform m a
-            => MonadPlatform (LazyS.StateT s m) a where
+instance MonadPlatform a m
+            => MonadPlatform a (LazyS.StateT s m) where
     liftPlatform = lift . liftPlatform
 
-instance MonadPlatform m a
-            => MonadPlatform (StrictS.StateT s m) a where
+instance MonadPlatform a m
+            => MonadPlatform a (StrictS.StateT s m) where
     liftPlatform = lift . liftPlatform
 
-instance (Monoid s, MonadPlatform m a)
-            => MonadPlatform (LazyW.WriterT s m) a where
+instance (Monoid s, MonadPlatform a m)
+            => MonadPlatform a (LazyW.WriterT s m) where
     liftPlatform = lift . liftPlatform
 
-instance (Monoid s, MonadPlatform m a)
-            => MonadPlatform (StrictW.WriterT s m) a where
+instance (Monoid s, MonadPlatform a m)
+            => MonadPlatform a (StrictW.WriterT s m) where
     liftPlatform = lift . liftPlatform
 
-instance MonadPlatform m a
-            => MonadPlatform (ReaderT r m) a where
+instance MonadPlatform a m
+            => MonadPlatform a (ReaderT r m) where
     liftPlatform = lift . liftPlatform
 
-instance MonadPlatform m a
-            => MonadPlatform (ContT r m) a where
+instance MonadPlatform a m
+            => MonadPlatform a (ContT r m) where
     liftPlatform = lift . liftPlatform
 
-instance MonadPlatform m a
-            => MonadPlatform (Task b c m) a where
+instance MonadPlatform a m
+            => MonadPlatform a (Task b c m) where
     liftPlatform = lift . liftPlatform

@@ -61,13 +61,13 @@ makePaths dir ext = [(name, prefix ++ show name ++ suffix) | name <- [toEnum 0 .
            suffix  = "." ++ ext
 
 -- | A signal function that loads some object and then produces it as constant output
-loader :: (MonadPlatform m p, LoadPlatform b p) =>
+loader :: (MonadPlatform p m, LoadPlatform b p) =>
             Resources p -> Location b -> SF m a b
 loader r a = runTask (liftPF (load r =<< request r a)) constant
 
 -- | A signal function that constantly reloads some object, producing it as output
-reloader :: (MonadPlatform m a1, LoadPlatform b a1) =>
-                Resources a1 -> Location b -> SF m a2 b
+reloader :: (MonadPlatform p m, LoadPlatform b p) =>
+                Resources p -> Location b -> SF m a b
 reloader r a = runTask (liftPF (request r a)) (constM . liftPF . load r)
 
 -- | Load a collection of names using a mapping of names to locations

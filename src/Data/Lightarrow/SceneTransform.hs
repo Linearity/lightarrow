@@ -94,7 +94,7 @@ composeXf (SRT s1 r1 t1) (SRT s2 r2 t2) = composite
 identityXf :: Num a => SceneTransform a
 identityXf = TRS (V3 0 0 0) (Quaternion 1 (V3 0 0 0)) (V3 1 1 1)
 
--- | The inverse of a given transformation, always in the matrix representation
+-- | The inverse of a given transformation
 inverseXf :: (Conjugate a, RealFloat a) => SceneTransform a -> SceneTransform a
 inverseXf (TRS t r s) = SRT (recip s) (recip r) (negate t)
 inverseXf (SRT s r t) = TRS (negate t) (recip r) (recip s)

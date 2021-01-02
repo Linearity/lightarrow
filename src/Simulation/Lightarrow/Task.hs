@@ -13,6 +13,9 @@ import              Data.Bitraversable
 import qualified    FRP.BearRiver as A (identity)
 import              FRP.BearRiver hiding (first, second, embed)
 
+instance MonadIO m => MonadIO (Task a b m) where
+    liftIO = lift . liftIO
+
 instance MonadState s m => MonadState s (Task a b m) where
     get = lift get
     put = lift . put
