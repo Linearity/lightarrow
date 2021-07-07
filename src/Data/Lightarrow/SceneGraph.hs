@@ -17,6 +17,7 @@ module Data.Lightarrow.SceneGraph
 
 import Data.Graph
 import Data.Maybe
+import Data.Monoid
 import Data.Tree
 import Data.Lightarrow.SceneTransform
 import Linear
@@ -95,14 +96,19 @@ Scene graphs can be huge. Often one encompasses a much larger scene than any
 rendering actually depicts. A pruned tree provides more efficient
 access to the relevant parts of the unpruned tree.
 
+The following code for generating a list of view transformations based on
+whatever camera nodes are present is complicated, inefficient, and the
+resulting transformations are not identified in any way.  This is a
+disappointment and a disgrace, and I am not going to worry about it right
+now.
 -}
-{-|
 
-The view transformations for each camera node in a given scene graph
-
--}
+-- | The view transformations for each camera node in a given scene graph
 cameraViews :: Tree (SceneNode Double b) -> [SceneTransform Double]
-cameraViews = camerasAux (Prelude.map CameraKey [0..]) . treeToGraph mkSceneNodeKey (CameraKey 0)
+cameraViews t = camerasAux
+                    (Prelude.map CameraKey [0..size t])
+                    (treeToGraph mkSceneNodeKey (CameraKey 0) t)
+    where size (Node x ks) = getSum (foldMap (Sum . size) ks) + 1
 
 camerasAux ks (g, adjacency, vertex) = [getView identityXf p | p <- paths]
     where   getView xf (Node v [])
