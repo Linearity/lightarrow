@@ -83,6 +83,16 @@ map f (IL k t) = IL k (IM.mapWithKey (curry f) t)
 filter :: (a -> Bool) -> IL a -> IL a
 filter p (IL k t) = IL k (IM.filter p t)
 
+-- | Fold with a right-associative operator over all elements and their
+-- identifiers
+keyFoldr :: ((Int, a) -> b -> b) -> b -> IL a -> b
+keyFoldr f b0 (IL k t) = IM.foldrWithKey (curry f) b0 t
+
+-- | Fold with a left-associative operator over all elements and their
+-- identifiers
+keyFoldl :: (b -> (Int, a) -> b) -> b -> IL a -> b
+keyFoldl f b0 (IL k t) = IM.foldlWithKey (curry . f) b0 t
+
 -- | The element corresponding to a given identifer, if it exists
 lookup :: Int -> IL a -> Maybe a
 lookup k (IL _ t) = IM.lookup k t

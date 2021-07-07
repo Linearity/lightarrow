@@ -26,6 +26,9 @@ periodically x = proc p -> do
                         occur   <-  restart (afterInput x)  -< (p, occur')
                     returnA -< occur
 
+fromEvent :: a -> Event a -> a
+fromEvent alt = event alt id
+
 instance Semigroup a => Semigroup (Event a) where
     Event a1    <> Event a2     = Event (a1 <> a2)
     NoEvent     <> e2           = e2
