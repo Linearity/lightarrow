@@ -48,6 +48,7 @@ library
                        System.Lightarrow.Load
                        System.Lightarrow.Mouse
                        System.Lightarrow.Platform
+                       System.Lightarrow.Random
                        System.Lightarrow.Sensation
                        System.Lightarrow.Timing
   default-extensions:  Arrows
