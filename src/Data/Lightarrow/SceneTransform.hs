@@ -10,17 +10,17 @@ import Optics
 data SceneTransform a
         -- | Decomposition into translation <- rotation <- scaling
         = TRS {
-            trsT :: V3 a,           -- ^ translation vector
-            trsR :: Quaternion a,   -- ^ rotation quaternion
-            trsS :: V3 a            -- ^ scaling vector
+            trsT :: !(V3 a),            -- ^ translation vector
+            trsR :: !(Quaternion a),    -- ^ rotation quaternion
+            trsS :: !(V3 a)             -- ^ scaling vector
             }
         -- | Decomposition into scaling <- rotation <- translation
         | SRT {
-            srtS :: V3 a,           -- ^ scaling vector
-            srtR :: Quaternion a,   -- ^ rotation quaternion
-            srtT :: V3 a            -- ^ translation vector
+            srtS :: !(V3 a),            -- ^ scaling vector
+            srtR :: !(Quaternion a),    -- ^ rotation quaternion
+            srtT :: !(V3 a)             -- ^ translation vector
             }
-    deriving Show
+    deriving (Eq, Show)
 
 -- | The translation part of a given transformation
 getTranslation :: SceneTransform a -> V3 a

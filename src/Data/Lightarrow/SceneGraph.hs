@@ -29,7 +29,7 @@ type SceneGraph a b = Tree (SceneNode a b)
 data SceneNode a b
     = Camera                            -- ^ viewpoint
     | Group                             -- ^ group of nodes in the same coordinate frame
-    | Frame (SceneTransform a)          -- ^ local coordinate frame
+    | Frame !(SceneTransform a)         -- ^ local coordinate frame
     | Term (SceneTransform a -> b)      -- ^ output based on a transformation
 
 instance Show a => Show (SceneNode a b)
@@ -38,12 +38,16 @@ instance Show a => Show (SceneNode a b)
             show (Frame t)  = "Frame " ++ show t
             show (Term _)   = "Term <function>"
 
-instance Semigroup (SceneGraph a b) where
+instance Eq a => Semigroup (SceneGraph a b) where
+    Node Group ks1 <> Node Group ks2
+                        = Node Group (ks1 <> ks2)
     Node Group ks <> t  = Node Group (t:ks)
     t <> Node Group ks  = Node Group (t:ks)
+    Node (Frame t0) ks1 <> Node (Frame t1) ks2
+        | t0 == t1      = Node (Frame t0) (ks1 <> ks2)
     t1 <> t2            = Node Group [t1, t2]
 
-instance Monoid (SceneGraph a b) where
+instance Eq a => Monoid (SceneGraph a b) where
     mempty = Node Group []
 
 -- | Add a coordinate transformation above the root of a scene graph
@@ -56,15 +60,21 @@ Given a 'Tree' of scene nodes, calculate the combined output values of
 all its terms.
 
 -}
-runTree :: (Conjugate a, RealFloat a) =>
-            ([b] -> b)                      -- ^ combine a list of outputs into one
-                -> SceneGraph a b           -- ^ the scene graph
+runTree :: (Conjugate a, RealFloat a, Monoid b) =>
+                SceneGraph a b              -- ^ the scene graph
                 -> b                        -- ^ the combined output
-runTree cat t = foldTree f t []
-    where   f (Frame t)  gs     = col (map (\g -> g . (t :)) gs)
-            f (Term g)   gs     = col (g . foldr composeXf identityXf . reverse : gs)
-            f _          gs     = col gs
-            col gs ts           = cat (map ($ ts) gs)
+runTree t = run identityXf [t] id
+    where
+        run !_ [] c
+            = c mempty
+        run !xf (Node (Term f) _ : ts) c
+            = run xf ts (c . (f xf <>))
+        run !xf0 (Node (Frame xf) ks : ts) c
+            = run (xf0 `composeXf` xf) ks (\b -> run xf0 ts (c . (b <>)))
+        run !xf (Node Group ks : ts) c
+            = run xf ks (\b -> run xf ts (c . (b <>)))
+        run !xf (_ : ts) c
+            = run xf ts c
 
 -- | Read/write access to the node at the root of a scene graph
 _node :: Lens' (SceneGraph a b) (SceneNode a b)
@@ -85,7 +95,7 @@ prune :: (Conjugate a, RealFloat a)
                 -> SceneTransform a                 -- ^ initial transformation
                 -> SceneGraph a b             -- ^ unpruned scene graph
                 -> Maybe (SceneGraph a b)     -- ^ pruned scene graph
-prune p xf (Node (Frame t) kids)
+prune p !xf (Node (Frame t) kids)
         | null kidsP    = Nothing
         | otherwise     = Just (Node (Frame t) kidsP)
     where   kidsP   = mapMaybe (prune p (xf `composeXf` t)) kids
@@ -96,75 +106,13 @@ Scene graphs can be huge. Often one encompasses a much larger scene than any
 rendering actually depicts. A pruned tree provides more efficient
 access to the relevant parts of the unpruned tree.
 
-The following code for generating a list of view transformations based on
-whatever camera nodes are present is complicated, inefficient, and the
-resulting transformations are not identified in any way.  This is a
-disappointment and a disgrace, and I am not going to worry about it right
-now.
 -}
 
 -- | The view transformations for each camera node in a given scene graph
 cameraViews :: Tree (SceneNode Double b) -> [SceneTransform Double]
-cameraViews t = camerasAux
-                    (Prelude.map CameraKey [0..size t])
-                    (treeToGraph mkSceneNodeKey (CameraKey 0) t)
-    where size (Node x ks) = getSum (foldMap (Sum . size) ks) + 1
-
-camerasAux ks (g, adjacency, vertex) = [getView identityXf p | p <- paths]
-    where   getView xf (Node v [])
-                            = case sceneNode v of
-                                Frame xf2   -> inverseXf (composeXf xf2 xf)
-                                _           -> inverseXf xf
-            getView xf (Node v (k:_))
-                            = case sceneNode v of
-                                Frame xf2   -> getView (composeXf xf2 xf) k
-                                _           -> getView xf k
-            paths           = map (head . dfs gT . pure) cams  --search for root
-            --undirected      = buildG (bounds g) (edges g ++ edges gT)
-            gT              = transposeG g
-            cams            = mapMaybe vertex ks    --valid camera vertices
-            sceneNode v     = adjacency v ^. _1
-{-
-
-The identifying key for a scene node simply pairs a label, corresponding to the
-constructor for a node, with a unique integer.
-
--}
-data SceneNodeKey = FrameKey Int | GroupKey Int | CameraKey Int | TermKey Int
-    deriving (Eq, Ord, Show)
-
-sceneNodeKeyCode :: SceneNodeKey -> Int
-sceneNodeKeyCode (FrameKey k)   = k
-sceneNodeKeyCode (GroupKey k)   = k
-sceneNodeKeyCode (CameraKey k)  = k
-sceneNodeKeyCode (TermKey k)    = k
-{-
-
-The general representation using the structures of the |Data.Graph| module is
-more cumbersome to use than the tree representation using |Data.Tree|, so
-application code will likely use the latter. However, given a way to generate
-vertex keys we can generate a general |Graph| from a |Tree|.
-
--}
-treeToGraph ::  (Ord b, Show b)
-                =>  (a -> b -> b)
-                    -> b
-                    -> Tree a
-                    -> (Graph, Vertex -> (a, b, [b]), b -> Maybe Vertex)
-treeToGraph mkKey k t = graphFromEdges (view _3 (getEdges k t))
-    where   getEdges k0 (Node a c) = (k2, k1, (a, k1, ks) : concat eC)
-                where   k1              = mkKey a k0
-                        (k2, ks, eC)    = foldr col (k1, [], []) c
-            col n (k1, ks, es) = (k3, k2 : ks, eN : es)
-                where   (k3, k2, eN)    = getEdges k1 n
-{-
-
-One simple way to generate keys is just to use the appropriate labels and an
-ever-increasing unique integer.
-
--}
-mkSceneNodeKey :: SceneNode a b -> SceneNodeKey -> SceneNodeKey
-mkSceneNodeKey  Group       key     = GroupKey  (sceneNodeKeyCode key + 1)
-mkSceneNodeKey  (Frame _)   key     = FrameKey  (sceneNodeKeyCode key + 1)
-mkSceneNodeKey  Camera      key     = CameraKey (sceneNodeKeyCode key + 1)
-mkSceneNodeKey  (Term _)    key     = TermKey   (sceneNodeKeyCode key + 1)
+cameraViews = run identityXf
+    where
+        run !xf (Node (Term f) _) = []
+        run !xf0 (Node (Frame xf) ks) = concatMap (run (xf0 `composeXf` xf)) ks
+        run !xf (Node Group ks) = concatMap (run xf) ks
+        run !xf (Node Camera _) = [inverseXf xf]

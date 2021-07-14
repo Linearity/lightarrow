@@ -19,9 +19,9 @@ class (BitmapPlatform m, ActuatePlatform m) => BlitPlatform m where
     -}
     blit    :: Bitmap m                             -- ^ the bitmap to copy
                     -> Color                        -- ^ tint
-                    -> (Double, Double)             -- ^ horizontal and vertical scaling
+                    -> V2 Double                    -- ^ horizontal and vertical scaling
                     -> Double                       -- ^ counterclockwise rotation
-                    -> (Double, Double, Double)     -- ^ position in frame
+                    -> V3 Double                    -- ^ position in frame
                     -> Actuation m                  -- ^ the copy command
 
 -- | An actuation that draws a bitmap, filtered by a given color, with
@@ -33,9 +33,8 @@ sceneBlit :: BlitPlatform p =>
                     -> Color                    -- ^ tint
                     -> SceneTransform Double    -- ^ transformation
                     -> Actuation p              -- ^ the drawing command
-sceneBlit b c xf = blit b c (sX, sY) r (x, y, z)
-    where   r           = unangle (V2 rX rY)
-            V3 x y z    = getTranslation xf
-            V3 rX rY _  = Linear.rotate (getRotation xf) (V3 1 0 0)
-            V3 sX sY _  = getScale xf
+sceneBlit b c !xf = blit b c (V2 sX sY) r (getTranslation xf)
+    where   !r              = unangle (V2 rX rY)
+            !(V3 rX rY _)   = Linear.rotate (getRotation xf) (V3 1 0 0)
+            !(V3 sX sY _)   = getScale xf
             -- xf'         = center b xf

@@ -17,8 +17,8 @@ class ActuatePlatform m => RectanglePlatform m where
 
     -}
     rectangle   :: Color                            -- ^ fill color
-                    -> (Double, Double)             -- ^ rectangle dimensions
-                    -> (Double, Double, Double)     -- ^ position in frame
+                    -> V2 Double                    -- ^ rectangle dimensions
+                    -> V3 Double                    -- ^ position in frame
                     -> Actuation m                  -- ^ the drawing command
 
 -- | An actuation that draws a filled rectangle of the given dimensions, with
@@ -29,7 +29,6 @@ sceneRectangle :: RectanglePlatform m =>
                         -> (Double, Double)         -- ^ rectangle dimensions
                         -> SceneTransform Double    -- ^ transformation
                         -> Actuation m              -- ^ the drawing command
-sceneRectangle c (w, h) xf = rectangle c (sw, sh) (x - sw/2, y - sh/2, z)
-    where   (sw, sh)        = (sX * w, sY * h)
-            V3 x y z        = getTranslation xf
-            V3 sX sY _      = getScale xf
+sceneRectangle c (w, h) xf = rectangle c (V2 sX sY) (getTranslation xf - halfScale)
+    where   halfScale       = V3 (1/2) (1/2) 1 * s
+            s@(V3 sX sY _)  = getScale xf * V3 w h 0
