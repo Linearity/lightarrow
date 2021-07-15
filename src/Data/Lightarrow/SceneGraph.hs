@@ -12,7 +12,6 @@ module Data.Lightarrow.SceneGraph
         runTree,
         _node,
         _kids,
-        prune,
         cameraViews ) where
 
 import Data.Graph
@@ -61,14 +60,16 @@ all its terms.
 
 -}
 runTree :: (Conjugate a, RealFloat a, Monoid b) =>
-                SceneGraph a b              -- ^ the scene graph
-                -> b                        -- ^ the combined output
-runTree t = run identityXf [t] id
+                (SceneTransform a -> Bool)      -- ^ criterion for included terms
+                -> SceneGraph a b               -- ^ the scene graph
+                -> b                            -- ^ the combined output
+runTree keep t = run identityXf [t] id
     where
         run !_ [] c
             = c mempty
-        run !xf (Node (Term f) _ : ts) c
-            = run xf ts (c . (f xf <>))
+        run xf (Node (Term f) _ : ts) c
+            | keep xf   = run xf ts (c . (f xf <>))
+            | otherwise = run xf ts c
         run !xf0 (Node (Frame xf) ks : ts) c
             = run (xf0 `composeXf` xf) ks (\b -> run xf0 ts (c . (b <>)))
         run !xf (Node Group ks : ts) c
@@ -83,30 +84,6 @@ _node = lens rootLabel (\t n -> t { rootLabel = n })
 -- | Read/write access to the subtrees of the root of a scene graph
 _kids :: Lens' (SceneGraph a b) [SceneGraph a b]
 _kids = lens subForest (\t ks -> t { subForest = ks })
-
-{-|
-
-Given a tree of scene nodes and a predicate on their transformations, remove
-the branches of the tree whose descendants do not satisfy the predicate.
-
--}
-prune :: (Conjugate a, RealFloat a)
-            => (SceneTransform a -> Bool)           -- ^ predicate
-                -> SceneTransform a                 -- ^ initial transformation
-                -> SceneGraph a b             -- ^ unpruned scene graph
-                -> Maybe (SceneGraph a b)     -- ^ pruned scene graph
-prune p !xf (Node (Frame t) kids)
-        | null kidsP    = Nothing
-        | otherwise     = Just (Node (Frame t) kidsP)
-    where   kidsP   = mapMaybe (prune p (xf `composeXf` t)) kids
-prune p xf x = if p xf then Just x else Nothing
-{-
-
-Scene graphs can be huge. Often one encompasses a much larger scene than any
-rendering actually depicts. A pruned tree provides more efficient
-access to the relevant parts of the unpruned tree.
-
--}
 
 -- | The view transformations for each camera node in a given scene graph
 cameraViews :: Tree (SceneNode Double b) -> [SceneTransform Double]
