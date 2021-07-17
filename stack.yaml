@@ -46,7 +46,7 @@ packages:
 #
 extra-deps:
   - git: https://github.com/Linearity/dunai.git
-    commit: 80b23457458e07939c1e7bc575b19ebfc30b051e
+    commit: 638c5725b5ac7f24d1695e0a738e610d663fca1f
     subdirs:
       - dunai
       - dunai-frp-bearriver
