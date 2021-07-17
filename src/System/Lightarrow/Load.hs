@@ -23,9 +23,8 @@ instance FileLocation FilePath where
 
 -- | Platforms that load objects from a store at run time
 class LoadPlatform d m where
-    request :: Resources m -> Location d -> m d
-    load    :: Resources m -> d -> m d
-    unload  :: Resources m -> d -> m d
+    load :: Resources m -> Location d -> m d
+    unload  :: Resources m -> d -> m ()
 
 -- stringFromFile' :: MonadIO m => FilePath -> (String -> IO a) -> m a
 -- stringFromFile' path k = liftIO (withFile path ReadMode
@@ -63,12 +62,7 @@ makePaths dir ext = [(name, prefix ++ show name ++ suffix) | name <- [toEnum 0 .
 -- | A signal function that loads some object and then produces it as constant output
 loader :: (MonadPlatform p m, LoadPlatform b p) =>
             Resources p -> Location b -> SF m a b
-loader r a = runTask (liftPF (load r =<< request r a)) constant
-
--- | A signal function that constantly reloads some object, producing it as output
-reloader :: (MonadPlatform p m, LoadPlatform b p) =>
-                Resources p -> Location b -> SF m a b
-reloader r a = runTask (liftPF (request r a)) (constM . liftPF . load r)
+loader r a = runTask (liftPF (load r a)) constant
 
 -- | Load a collection of names using a mapping of names to locations
 loadMany :: (Traversable t, Monad f, LoadPlatform b f) =>
@@ -76,4 +70,4 @@ loadMany :: (Traversable t, Monad f, LoadPlatform b f) =>
                     -> Resources f      -- ^ platform resources
                     -> t a              -- ^ initial names
                     -> f (t b)          -- ^ loaded objects
-loadMany rename r = traverse (load r <=< request r . rename)
+loadMany rename r = traverse (load r . rename)
